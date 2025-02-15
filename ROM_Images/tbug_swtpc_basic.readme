@@ -1,0 +1,10 @@
+Intel hex image file containing:
+
+- Newbear TBUG
+- SWTPC Cassette BASIC V2.2
+- Romcopy at C000 to copy BASIC image to ram
+- TBUG reset vectors at top of address space
+
+Note: designed for 64K rom, so all addresses are where they should be.
+To run, type J C000
+
