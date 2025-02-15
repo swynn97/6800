@@ -5,6 +5,8 @@ Intel hex image file containing:
 - Romcopy at C000 to copy BASIC image to ram
 - TBUG reset vectors at top of address space
 
+ACIA should be at slot 0, so 8000H
+
 Note: designed for 64K rom, so all addresses are where they should be.
 To run, type J C000
 
