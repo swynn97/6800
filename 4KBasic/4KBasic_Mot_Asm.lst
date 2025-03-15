@@ -1,0 +1,1954 @@
+0001                         * MICRO BASIC PLUS SOURCE LISTING
+0002                         *
+0003                         * MICRO BASIC PLUS
+0004                         * COPYRIGHT (C) 1976 BY
+0005                         *
+0006                         * TECHNICAL SYSTEMS CONSULTANTS
+0007                         * BOX 2574
+0008                         * W. LAFAYETTE INDIANA 47906
+0009                         * 
+0010                         * MODIFIED FOR 77-68 ACIA IN SLOT 0
+0011                         * SEE INTBRK ROUTINE
+0012                         * SEP 27, 2016 SWYNN
+0013                         * 
+0014                         * MODIFIED FOR MOTOROLA ASSEMBLER, 3/13/25
+0015                         *
+0016                         
+0017                         * EQUATES
+0018 a07f                    STACK EQU $A07F 
+0019 8004                    PIAADR EQU $8004 
+0020 8000                    ACIASTR EQU $8000
+0021 8001                    ACIADTR EQU $8001
+0022 a002                    PFILBG EQU $A002 
+0023 a004                    PFILEN EQU $A004 
+0024 1f00                    EXTERN EQU $1F00 
+0025 e0e3                    MONITR EQU $E0E3 
+0026 a048                    MONPC EQU $A048 
+0027 a000                    STKBOT EQU $A000
+0028                         
+0029                         * TEMPORARY STORAGE
+0030                         
+0031 0000                    RNDM RMB 4
+0032 0004                    BUFPNT RMB 2
+0033 0006                    FORSTK RMB 2
+0034 0008                    DIMPNT RMB 2
+0035 000a                    XTEMP3 RMB 2
+0036 000c                    DATAST RMB 2 
+0037 000e                    DATAPT RMB 2 
+0038 0010                    TRYVAL RMB 2 
+0039 0012                    CRFLAG RMB 1 
+0040 0013                    QMFLAG RMB 1 
+0041 0014                    ROWVAR RMB 1 
+0042 0015                    ROWCON RMB 1 
+0043 0016                    COLCON RMB 1 
+0044 0017                    TABFLG RMB 1 
+0045 0018                    DIMFLG RMB 1 
+0046 0019                    RUNFLG RMB 1 
+0047 001a                    DATAFL RMB 1 
+0048 001b                    SUBCNT RMB 1 
+0049 001c                    LETFLG RMB 1 
+0050 001d                    FLDCNT RMB 1 
+0051 001e                    NXPNTR RMB 2 
+0052 0020                    XTEMP RMB 2 
+0053 0022                    XSAVE RMB 2 
+0054 0024                    XSAVE2 RMB 2
+0055 0026                    NUMCNT RMB 1 
+0056 0027                    NEGFLG RMB 1 
+0057 0028                    NOEXFL RMB 1 
+0058 0029                    EXTRA RMB 2 
+0059 002b                    COUNT RMB 1 
+0060 002c                    STKCNT RMB 1 
+0061 002d                    AUXCNT RMB 1 
+0062 002e                    SIGN RMB 1 
+0063 002f                    AXSIGN RMB 1 
+0064 0030                    OVFLBF RMB 1 
+0065 0031                    XTEMP2 RMB 2 
+0066 0033                    XTEMP4 RMB 2 
+0067 0035                    XTEMP5 RMB 2 
+0068 0037                    CPX1 RMB 2 
+0069 0039                    CPX2 RMB 2 
+0070 003b                    STKEND RMB 3 
+0071 003e                    CHRCNT RMB 1 
+0072 003f                    OPSTAK RMB 32 
+0073 005f                    AC RMB 3 
+0074 0062                    NUMBER RMB 3 
+0075 0065                    AX RMB 3 
+0076 0068                    BUFFER RMB 72
+0077                         
+0078                         * LABLE TABLE
+0079                         
+0080 00b0                    LBLTBL RMB 78
+0081 00fe                    STKTOP RMB 2
+0082                         
+0083                         * CONSTANTS
+0084                         
+0085 0008                    BACKSP EQU $8 
+0086 0018                    DELCOD EQU $18 
+0087 0021                    PRMPTC EQU $21
+0088                         
+0089 0100                     ORG $0100
+0090                         
+0091                         * MAIN PROGRAM
+0092                         
+0093 0100 7e 01 a6           START JMP MICBAS JMP TO BEGIN
+0094 0103 7e 01 b0           RESTRT JMP FILBUF
+0095                         
+0096                         * EXTERNAL I-O ROUTINES
+0097                         
+0098 0106 7e e1 d1           OUTEEE JMP $E1D1 
+0099 0109 bd e1 ac           INCH JSR $E1AC 
+0100 010c 7e 04 52           BREAK JMP INTBRK 
+0101 010f 1e ff              MEMEND FDB $1EFF
+0102                         
+0103                         * KEYWORD AND JUMP TABLE
+0104                         
+0105 0111 50 52 49           KEYTBL FCC ;PRI;
+0106 0114 04 ae               FDB PRINT
+0107                         
+0108 0116 49 4e 50            FCC ;INP;
+0109 0119 07 a0               FDB INPUT
+0110                         
+0111 011b 49 46 20            FCC ;IF ;
+0112 011e 08 ba               FDB IF
+0113                         
+0114 0120 4c 45 54            FCC ;LET;
+0115 0123 07 7a              LETADR FDB LET
+0116                         
+0117 0125 46 4f 52            FCC ;FOR;
+0118 0128 09 7e               FDB FOR
+0119                         
+0120 012a 4e 45 58            FCC ;NEX;
+0121 012d 09 a5               FDB NEXT
+0122                         
+0123 012f 47 4f 54            FCC ;GOT;
+0124 0132 07 89               FDB GOTO
+0125                         
+0126 0134 47 4f 53            FCC ;GOS;
+0127 0137 09 33               FDB GOSUB
+0128                         
+0129 0139 4f 4e 20            FCC ;ON ;
+0130 013c 08 7e               FDB ONGOTO
+0131                         
+0132 013e 52 45 54            FCC ;RET;
+0133 0141 09 5b               FDB RETURN
+0134                         
+0135 0143 52 45 41            FCC ;REA;
+0136 0146 08 2e               FDB READ
+0137                         
+0138 0148 44 41 54            FCC ;DAT;
+0139 014b 08 1f               FDB DATA
+0140                         
+0141 014d 52 45 53            FCC ;RES;
+0142 0150 08 74               FDB RESTOR
+0143                         
+0144 0152 44 49 4d            FCC ;DIM;
+0145 0155 06 79               FDB DIM
+0146                         
+0147 0157 45 58 54            FCC ;EXT;
+0148 015a 07 09               FDB EXTRNL
+0149                         
+0150 015c 4d 4f 4e            FCC ;MON;
+0151 015f e0 e3               FDB MONITR
+0152                         
+0153 0161 45 4e 44            FCC ;END;
+0154 0164 01 b0               FDB FILBUF
+0155                         
+0156 0166 52 45 4d            FCC ;REM;
+0157 0169 07 0c               FDB RUNEXC
+0158                         
+0159 016b 52 55 4e            FCC ;RUN;
+0160 016e 07 67               FDB RUN
+0161                         
+0162 0170 4c 49 53            FCC ;LIS;
+0163 0173 03 ec               FDB LIST
+0164                         
+0165 0175 53 43 52            FCC ;SCR;
+0166 0178 01 a6               FDB MICBAS
+0167 017a 00                  FCB 0
+0168                         
+0169 017b 52 4e 44           FCTTBL FCC ;RND;
+0170 017e 0a c8               FDB EVAL88
+0171                         
+0172 0180 41 42 53            FCC ;ABS;
+0173 0183 0a c4               FDB EVAL85
+0174                          
+0175 0185 53 47 4e            FCC ;SGN;
+0176 0188 0a bc               FDB EVAL86
+0177 018a 00                  FCB 0
+0178                         
+0179                         * INITIALIZATION
+0180                         
+0181 018b ce 01 00           CLRBEG LDX #START
+0182 018e df 0a               STX XTEMP3 SAVE X
+0183 0190 ce 00 0c           CLRBG2 LDX #DATAST SET START
+0184 0193 20 08               BRA CLEAR GO CLEAR
+0185                         
+0186 0195 fe 01 0f           CLREND LDX MEMEND SET END
+0187 0198 df 0a               STX XTEMP3 SAVE
+0188 019a fe 0d 55            LDX ENDSTR
+0189 019d 4f                 CLEAR CLRA CLEAR ACC.
+0190 019e a7 00              CLEAR2 STAA 0,X CLEAR BYTE
+0191 01a0 08                  INX BUMP THE POINTER
+0192 01a1 9c 0a               CPX XTEMP3 DONE?
+0193 01a3 26 f9               BNE CLEAR2
+0194 01a5 39                  RTS RETURN
+0195                         
+0196 01a6 8d e3              MICBAS BSR CLRBEG GO CLEAR
+0197 01a8 ce 0d 57            LDX #STORSP
+0198 01ab ff 0d 55            STX ENDSTR SET END STORAGE:
+0199 01ae 8d e5               BSR CLREND GO CLEAR
+0200                         
+0201                         * GET LINE INTO INPUT BUFFER
+0202                         
+0203 01b0 ce 01 03           FILBUF LDX #RESTRT
+0204 01b3 ff a0 48            STX MONPC SET UP RETURN POINTER 
+0205 01b6 8e a0 7f            LDS #STACK
+0206 01b9 ce 00 68            LDX #BUFFER
+0207 01bc df 0a               STX XTEMP3 SAVE BOUND 
+0208 01be 8d d0               BSR CLRBG2
+0209 01c0 ce 0d 55            LDX #ENDSTR SET PUHCH LIMITS 
+0210 01c3 ff a0 02            STX PFILBG
+0211 01c6 ee 00               LDX 0,X SET END
+0212 01c8 ff a0 04            STX PFILEN
+0213 01cb df 08               STX DIMPNT
+0214 01cd ce 00 68            LDX #BUFFER POINT TO BUFFER
+0215 01d0 bd 02 ea            JSR PCRLF OUT A CR & LF 
+0216 01d3 86 21               LDAA #PRMPTC
+0217 01d5 bd 04 4c            JSR OUTCH OUTPUT PROMPT
+0218 01d8 bd 02 d0           FILBU2 JSR INCHAR GET A CHARACTER
+0219 01db 27 d3               BEQ FILBUF
+0220 01dd a7 00               STAA 0,X SAVE CHAR.
+0221 01df 81 0d               CMPA #$0D IS IT A C.R. ? 
+0222 01e1 27 08               BEQ FILBU6
+0223 01e3 08                  INX BUMP THE POINTER
+0224 01e4 8c 00 b0            CPX #BUFFER+72
+0225 01e7 26 ef               BNE FILBU2 END OF BUFFER? 
+0226 01e9 20 c5               BRA FILBUF
+0227 01eb ce 00 68           FILBU6 LDX #BUFFER RESET POINTER
+0228 01ee bd 03 31            JSR BCDCO1 LINE NO. CONV.
+0229 01f1 df 31               STX XTEMP2 SAVE POINTER
+0230 01f3 bd 03 7b            JSR FNDKEY CHECK KEY WORD 
+0231 01f6 4d                  TSTA
+0232 01f7 26 1a               BNE FILBU8 IF NONZERO THEN OK
+0233 01f9 de 04               LDX BUFPNT POINT TO BUFFER
+0234 01fb a6 00               LDAA 0,X GET CHARACTER
+0235 01fd 81 0d               CMPA #$D IS IT A C.R.? 
+0236 01ff 26 08               BNE FILBU7
+0237 0201 d6 28               LDAB NOEXFL DIR. EXECUTION? 
+0238 0203 27 ab               BEQ FILBUF
+0239 0205 97 12               STAA CRFLAG SET FLAG
+0240 0207 20 0a               BRA FILBU8 IT IS OK
+0241 0209 bd 07 4d           FILBU7 JSR TSTLET LET?
+0242 020c 27 05               BEQ FILBU8
+0243 020e 86 10              FILB75 LDAA #$10
+0244 0210 7e 04 69            JMP MISTAK REPORT ERROR #0
+0245 0213 96 3e              FILBU8 LDAA CHRCNT GET CHAR. COUNT
+0246 0215 90 26               SUBA NUMCNT SUB LINE # DIGITS
+0247 0217 97 3e               STAA CHRCNT SAVE
+0248 0219 d6 28               LDAB NOEXFL DIRECT EXECUTE ?
+0249 021b 26 06               BNE STUFLN IF NOT GO PUT LINE
+0250 021d bd 02 ea            JSR PCRLF OUTPUT C.R. L.F.
+0251 0220 7e 07 49            JMP RUNEX4 GO TO ROUTINE
+0252                         
+0253                         * PUT LINE IN PROGRAM STORAGE
+0254                         
+0255 0223 fe 01 0f           STUFLN LDX MEMEND
+0256 0226 df 37               STX CPX1
+0257 0228 de 31               LDX XTEMP2 SET POINTER
+0258 022a df 04               STX BUFPNT SAVE POINTER
+0259 022c bd 02 a5            JSR FNDLIN GO FIND LINE IN STORE
+0260 022f df 22               STX XSAVE SAVE POINTER
+0261 0231 5d                  TSTB DID WE FIND IT?
+0262 0232 26 20               BNE INSERT IF NOT GO INSERT
+0263                         
+0264                         
+0265                         * REPLACE EXISTING LINE WITH NEW ONE
+0266                         
+0267 0234 5c                 REPLAC INCB INC THE COUNTER
+0268 0235 a6 00               LDAA 0,X GET A CHARACTER
+0269 0237 08                  INX BUMP THE POINTER
+0270 0238 81 0d               CMPA #$D IS IT A C.R,? 
+0271 023a 26 f8               BNE REPLAC
+0272 023c f7 02 4c           REPLA4 STAB OFSET2+1 SETUP OFFSET
+0273 023f 86 ff               LDAA #$FF GET COUNT
+0274 0241 50                  NEGB 2'S COMP. IT
+0275 0242 8d 46               BSR ADJEND GO FIX END PNTR
+0276 0244 de 22               LDX XSAVE RESTORE THE POINTER
+0277 0246 bc 0d 55           REPLA5 CPX ENDSTR END OF STORAGE?
+0278 0249 27 07               BEQ REPLA6
+0279 024b a6 00              OFSET2 LDAA 0,X
+0280 024d a7 00               STAA 0,X MOVE A CHARACTER 
+0281 024f 08                  INX BUMP THE POINTER 
+0282 0250 20 f4               BRA REPLA5 REPEAT
+0283 0252 de 22              REPLA6 LDX XSAVE RESTORE THE POINTER
+0284                         
+0285                         * INSERT A LINE INTO PROGRAM STORAGE
+0286                         
+0287 0254 96 12              INSERT LDAA CRFLAG LONE C.R. ?
+0288 0256 26 2f               BNE INSER6
+0289 0258 fe 0d 55            LDX ENDSTR
+0290 025b d6 3e               LDAB CHRCNT GET CHAR. COUNT
+0291 025d cb 02               ADDB #2 BIAS FOR LINE NUM. 
+0292 025f f7 02 6c            STAB OFFSET+1 SETUP OFFSET
+0293 0262 8d 26               BSR ADJEND FIX END PNTR
+0294 0264 9c 22              INSER2 CPX XSAVE DONE?
+0295 0266 27 07               BEQ INSER3
+0296 0268 09                  DEX DEC THE POINTER
+0297 0269 a6 00               LDAA 0,X GET A CHAR,
+0298 026b a7 00              OFFSET STAA 0,X
+0299 026d 20 f5               BRA INSER2 MOVE IT
+0300 026f 09                 INSER3 DEX
+0301 0270 bd 06 70            JSR PUTLB2 PUT LAB
+0302 0273 08                  INX BUMP THE POINTER 
+0303 0274 08                  INX
+0304 0275 df 22              INSER4 STX XSAVE SAVE POINTER
+0305 0277 de 04               LDX BUFPNT
+0306 0279 a6 00               LDAA 0,X GET CHAR*
+0307 027b 08                  INX BUMP THE POINTER
+0308 027c df 04               STX BUFPNT SAVE
+0309 027e de 22               LDX XSAVE RESTOR PNTR
+0310 0280 08                  INX
+0311 0281 a7 00               STAA 0,X SAVE IT
+0312 0283 81 0d               CMPA #$D IS IT A C.R.? 
+0313 0285 26 ee               BNE INSER4
+0314 0287 7e 01 b0           INSER6 JMP FILBUF 60 TO MAIN LOOP
+0315                         
+0316                         * ADJUST THE END OF PROGRAM POINTER
+0317                         
+0318 028a fb 0d 56           ADJEND ADDB ENDSTR+1
+0319 028d b9 0d 55            ADCA ENDSTR ADD IN VALUE 
+0320 0290 d7 3a               STAB CPX2+1
+0321 0292 97 39               STAA CPX2 SET END POINTER 
+0322 0294 bd 0c bb            JSR CMPX1
+0323 0297 24 07               BCC ADJEN2 
+0324 0299 f7 0d 56            STAB ENDSTR+1
+0325 029c b7 0d 55            STAA ENDSTR SAVE NEW POINTER
+0326 029f 39                  RTS RETURN
+0327 02a0 86 90              ADJEN2 LDAA #$90 SET ERROR
+0328 02a2 7e 04 69            JMP MISTAK
+0329                         
+0330                         * TRY TO FIND LINE 
+0331                         
+0332 02a5 96 64              FNDLIN LDAA NUMBER+2 
+0333 02a7 d6 63               LDAB NUMBER+1
+0334 02a9 ce 0d 57           FINDLN LDX #STORSP SETUP POINTER
+0335 02ac bc 0d 55           FINDL1 CPX ENDSTR END OF STORAGE?
+0336 02af 26 02               BNE FINDL4
+0337 02b1 5c                 FINDL2 INCB
+0338 02b2 39                  RTS RETURN
+0339 02b3 e1 00              FINDL4 CMPB 0,X CHECK M.S. DIGITS
+0340 02b5 22 0a               BHI FINDL6
+0341 02b7 26 f8               BNE FINDL2
+0342 02b9 a1 01               CMPA 1,X CHECK L.S, DIGITS 
+0343 02bb 22 04               BHI FINDL6
+0344 02bd 26 f2               BNE FINDL2
+0345 02bf 5f                  CLRB CEAR FLAG
+0346 02c0 39                  RTS RETURN
+0347 02c1 8d 03              FINDL6 BSR FNDCRT GO FIND C.R,
+0348 02c3 08                  INX BUMP THE POINTER
+0349 02c4 20 e6               BRA FINDL1 REPEAT
+0350                         
+0351                         * FIND A C,R, IN STORAGE
+0352                         
+0353 02c6 36                 FNDCRT PSHA SAVE A 
+0354 02c7 86 0d               LDAA #$D
+0355 02c9 08                 FNDVAL INX BUMP THE POINTER
+0356 02ca a1 00               CMPA 0,X TEST FOR C.R. 
+0357 02cc 26 fb               BNE FNDVAL
+0358 02ce 32                  PULA RESTORE A
+0359 02cf 39                  RTS RETURN
+0360                         
+0361                         * INPUT 
+0362                         
+0363 02d0 bd 01 09           INCHAR JSR INCH GET THE CHAR.
+0364 02d3 81 08               CMPA #BACKSP IS IT A BACKSPACE? 
+0365 02d5 26 0b               BNE INCHR2
+0366 02d7 8c 00 68            CPX #BUFFER BEGINNING OF BUF ? 
+0367 02da 27 0d               BEQ INCHR4
+0368 02dc 09                  DEX BACKUP ONE POS.
+0369 02dd 7a 00 3e            DEC CHRCNT DEC CHAR. COUNT 
+0370 02e0 20 ee               BRA INCHAR
+0371 02e2 81 18              INCHR2 CMPA #DELCOD DELETE LINE ?
+0372 02e4 27 03               BEQ INCHR4
+0373 02e6 7c 00 3e            INC CHRCNT
+0374 02e9 39                 INCHR4 RTS RETURN
+0375                         
+0376                         * PRINT CARRIAGE RETURN & LINEFEED
+0377                         
+0378 02ea df 22              PCRLF STX XSAVE SAVE X REG
+0379 02ec ce 03 01            LDX #CRLFST POINT TO STRING
+0380 02ef a6 00              PDATA1 LDAA 0,X GET CHAR
+0381 02f1 81 04               CMPA #4 IS IT 4?
+0382 02f3 27 06               BEQ PCRLF2
+0383 02f5 bd 04 4c            JSR OUTCH OUTPUT CHAR
+0384 02f8 08                  INX BUMP THE POINTER
+0385 02f9 20 f4               BRA PDATA1 REPEAT
+0386 02fb de 22              PCRLF2 LDX XSAVE RESTORE X REG
+0387 02fd 7f 00 1d            CLR FLDCNT ZERO FIELD COUNT
+0388 0300 39                  RTS RETURN
+0389                         
+0390 0301 0d 0a 00 00 00 00  CRLFST FCB $D,$A,0,0,0,0,4 
+     04
+0391                         
+0392                         * TEST FOR STATEMENT TERMINATOR
+0393                         
+0394 0308 81 0d              TSTTRM CMPA #$D C,R,?
+0395 030a 27 02               BEQ TSTTR2
+0396 030c 81 3a               CMPA #': COLON?
+0397 030e 39                 TSTTR2 RTS RETURN
+0398                         
+0399                         * CLEAR NUMBER THROUGH NUMBER+2
+0400                         
+0401 030f bd 0b 59           UPSCLR JSR STAKUP
+0402 0312 4f                 CLRNUM CLRA
+0403 0313 97 62               STAA NUMBER 
+0404 0315 97 63               STAA NUMBER+1 
+0405 0317 97 64               STAA NUMBER+2 
+0406 0319 39                  RTS
+0407                         
+0408                         * CONVERT NUMBER TO PACKED BCD
+0409                         
+0410 031a 8d f6              BCDCON BSR CLRNUM CLEAR NUMBER 
+0411 031c 97 28               STAA NOEXFL 
+0412 031e 97 27               STAA NEGFLG 
+0413 0320 97 26               STAA NUMCNT
+0414 0322 bd 03 68            JSR SKIPSP SKIP SPACES
+0415 0325 81 2b               CMPA #'+ IS IT A +? 
+0416 0327 27 07               BEQ BCDC01
+0417 0329 81 2d               CMPA #'- IS IT A - ? 
+0418 032b 26 04               BNE BCDCO1
+0419 032d 73 00 27            COM NEGFLG SET FLAG
+0420 0330 08                 BCDC01 INX
+0421 0331 bd 0c eb           BCDCO1 JSR CLASS GET A DIGIT
+0422 0334 c1 03               CMPB #3 IS IT A NUMBER? 
+0423 0336 27 05               BEQ BCDCO2
+0424 0338 96 27               LDAA NEGFLG
+0425 033a 7e 0b f2            JMP FIXSIN GO FIX UP THE SIGN
+0426 033d 08                 BCDCO2 INX BUMP THE POINTER
+0427 033e 97 28               STAA NOEXFL SET NO EXEC FLU
+0428 0340 84 0f               ANDA #$0F MASK OFF ASCII
+0429 0342 c6 04               LDAB #4 SET COUNTER
+0430 0344 78 00 64           BCDCO4 ASL NUMBER+2
+0431 0347 79 00 63            ROL NUMBER+1
+0432 034a 79 00 62            ROL NUMBER SHIFT PREV. OVER
+0433 034d 5a                  DECB DEC THE COUNTER 
+0434 034e 26 f4               BNE BCDCO4
+0435 0350 9b 64               ADDA NUMBER+2
+0436 0352 97 64               STAA NUMBER+2 SAVE NEW VALUE 
+0437 0354 7c 00 26            INC NUMCNT INC NUMBER CNTR 
+0438 0357 20 d8               BRA BCDCO1
+0439                         
+0440                         * FIND NEXT BLOCK
+0441                         
+0442 0359 de 04              NXTBLK LDX BUFPNT RESTORE POINTER
+0443 035b a6 00              NXTBL4 LDAA 0,X GET A CHAR.
+0444 035d 81 20               CMPA #'  IS IT A SPACE?
+0445 035f 27 07               BEQ SKIPSP
+0446 0361 08                  INX BUMP THE POINTER
+0447 0362 20 f7               BRA NXTBL4 REPEAT
+0448                         
+0449                         * CONVERT AND SKIP 
+0450                         
+0451 0364 8d b4              CONSKP BSR BCDCON 
+0452 0366 09                  DEX
+0453                         
+0454                         * SKIP ALL SPACES
+0455                         
+0456 0367 08                 SKPSP0 INX
+0457 0368 a6 00              SKIPSP LDAA 0,X GET CHR FROM BUF
+0458 036a 81 20               CMPA #$20 IS IT A SPACE?
+0459 036c 27 f9               BEQ SKPSP0
+0460 036e 39                 SKIPS4 RTS RETURN
+0461                         
+0462                         * FIND NEXT BLOCK NOT EXPECTING A SPACE
+0463                         
+0464 036f de 04              NXTSPC LDX BUFPNT SET POINTER
+0465 0371 bd 0c eb           NXTSP4 JSR CLASS GO CLASSIFY
+0466 0374 c1 02               CMPB #2 IS IT A LETTER? 
+0467 0376 26 f0               BNE SKIPSP
+0468 0378 08                  INX BUMP THE POINTER 
+0469 0379 20 f6               BRA NXTSP4
+0470                         
+0471                         * FIND KEY WORD IF POSSIBLE
+0472                         
+0473 037b bd 03 68           FNDKEY JSR SKIPSP SKIP SPACES
+0474 037e df 04               STX BUFPNT SAVE THE POINTER 
+0475 0380 df 22               STX XSAVE
+0476 0382 ce 01 11            LDX #KEYTBL POINT TO KEY WORDS
+0477 0385 c6 05              FNDKE2 LDAB #5
+0478 0387 a1 00              FNDKE4 CMPA 0,X TEST THE CHARACTER
+0479 0389 26 12               BNE FNDKE6
+0480 038b df 0a               STX XTEMP3 SAVE POINTER 
+0481 038d de 22               LDX XSAVE
+0482 038f 08                  INX BUMP POINTER
+0483 0390 a6 00               LDAA 0,X GET CHAR. 
+0484 0392 df 22               STX XSAVE
+0485 0394 de 0a               LDX XTEMP3 REST. PNTR. 
+0486 0396 08                  INX
+0487 0397 5a                  DECB
+0488 0398 c1 02               CMPB #2
+0489 039a 26 eb               BNE FNDKE4 IF NOT DONE REPEAT
+0490 039c 39                 FNDKE5 RTS RETURN
+0491 039d 08                 FNDKE6 INX BUMP THE COUNTER
+0492 039e 5a                  DECB
+0493 039f 26 fc               BNE FNDKE6
+0494 03a1 a6 00               LDAA 0,X GET CHARACTER
+0495 03a3 27 f7               BEQ FNDKE5 IF ZERO, END OF LIST
+0496 03a5 df 0a               STX XTEMP3 SAVE POINTER 
+0497 03a7 de 04               LDX BUFPNT
+0498 03a9 df 22               STX XSAVE
+0499 03ab a6 00               LDAA 0,X GET NEW CHAR.
+0500 03ad de 0a               LDX XTEMP3 RESTORE POINTER
+0501 03af 20 d4               BRA FNDKE2 REPEAT
+0502                         
+0503                         
+0504                         * OUTPUT A NUMBER FROM PACKED BCD BYTES
+0505                         
+0506 03b1 ce 00 62           OUTBCD LDX #NUMBER SET POINTER
+0507 03b4 c6 02              OUTBCI LDAB #2 SET COUNTER
+0508 03b6 0c                  CLC
+0509 03b7 a6 00               LDAA 0,X GET A WORD
+0510 03b9 2a 19               BPL OUTBC4 IF NOT NEG JMP AHEAD 
+0511 03bb 86 2d               LDAA #'-
+0512 03bd bd 04 4c            JSR OUTCH OUTPUT A
+0513 03c0 7c 00 1d            INC FLDCNT
+0514 03c3 20 0f               BRA OUTBC4
+0515 03c5 a6 00              OUTBC2 LDAA 0,X GET DIGITS
+0516 03c7 85 f0               BITA #$F0 MASK
+0517 03c9 25 02               BCS OUTBC3
+0518 03cb 27 07               BEQ OUTBC4 JMP IF ZEROES
+0519 03cd bd 04 44           OUTBC3 JSR OUTHL OUTPUT A DIGIT
+0520 03d0 7c 00 1d            INC FLDCNT 
+0521 03d3 0d                  SEC
+0522 03d4 a6 00              OUTBC4 LDAA 0,X GET A DIGIT
+0523 03d6 c5 ff               BITB #$FF LAST DIGIT? 
+0524 03d8 27 06               BEQ OUTBC6
+0525 03da 85 0f               BITA #$0F MASK
+0526 03dc 25 02               BCS OUTBC6
+0527 03de 27 07               BEQ OUTBC8 JMP IF ZEROES
+0528 03e0 bd 04 48           OUTBC6 JSR OUTHR OUTPUT A DIGIT
+0529 03e3 7c 00 1d            INC FLDCNT 
+0530 03e6 0d                  SEC
+0531 03e7 08                 OUTBC8 INX BUMP THE POINTER
+0532 03e8 5a                  DECB DEC THE COUNTER
+0533 03e9 2a da               BPL OUTBC2 REPEAT IF NOT DONE
+0534 03eb 39                  RTS RETURN
+0535                         
+0536                         * LIST USERS PROGRAM
+0537                         
+0538 03ec bd 03 6f           LIST JSR NXTSPC FIND NEXT 
+0539 03ef 81 0d               CMPA #$D
+0540 03f1 27 25               BEQ LIST3
+0541 03f3 bd 03 1a            JSR BCDCON GET LINE NUM
+0542 03f6 df 04               STX BUFPNT SAVE POINTER 
+0543 03f8 bd 02 a5            JSR FNDLIN FIND LINE
+0544 03fb df 22               STX XSAVE SAVE IT
+0545 03fd bd 03 6f            JSR NXTSPC
+0546 0400 81 0d               CMPA #$D C.R.?
+0547 0402 26 05               BNE LIST1 
+0548 0404 7c 00 1b            INC SUBCNT SET TO 1 
+0549 0407 20 0b               BRA LIST2
+0550 0409 08                 LIST1 INX BUMP THE POINTER 
+0551 040a bd 03 68            JSR SKIPSP
+0552 040d bd 03 1a            JSR BCDCON GET COUNT
+0553 0410 96 64               LDAA NUMBER+2
+0554 0412 97 1b               STAA SUBCNT SAVE IT
+0555 0414 de 22              LIST2 LDX XSAVE POINT TO LINE
+0556 0416 20 03               BRA LIST4
+0557 0418 ce 0d 57           LIST3 LDX #STORSP SET POINTER
+0558 041b bc 0d 55           LIST4 CPX ENDSTR END OF STORAGE?
+0559 041e 27 21               BEQ LIST8
+0560 0420 bd 02 ea            JSR PCRLF OUTPUT A 
+0561 0423 c6 01               LDAB #1 SETUP COUNTER 
+0562 0425 0c                  CLC
+0563 0426 8d 9d               BSR OUTBC2 OUT LINE NUMBER
+0564 0428 a6 00              LIST5 LDAA 0,X GET A CHARACTER
+0565 042a 81 0d               CMPA #$D IS IT A C.R.? 
+0566 042c 27 05               BEQ LIST6
+0567 042e 8d 1c               BSR OUTCH OUTPUT CHARACTER 
+0568 0430 08                  INX BUMP THE POINTER 
+0569 0431 20 f5               BRA LIST5 REPEAT
+0570 0433 08                 LIST6 INX BUMP THE POINTER
+0571 0434 96 1b               LDAA SUBCNT GET COUNT 
+0572 0436 27 e3               BEQ LIST4
+0573 0438 8b 99               ADDA #$99 DEC THE COUNT 
+0574 043a 19                  DAA
+0575 043b 27 04               BEQ LIST8
+0576 043d 97 1b               STAA SUBCNT SAVE
+0577 043f 20 da               BRA LIST4
+0578 0441 7e 01 b0           LIST8 JMP FILBUF
+0579                         
+0580 0444 44                 OUTHL LSRA
+0581 0445 44                  LSRA 
+0582 0446 44                  LSRA
+0583 0447 44                  LSRA MOVE TO BOTTOM
+0584 0448 84 0f              OUTHR ANDA #$0F MASK
+0585 044a 8b 30               ADDA #$30 BIAS
+0586 044c bd 01 0c           OUTCH JSR BREAK CHECK FOR BREAK
+0587 044f 7e 01 06            JMP OUTEEE GO PRINT
+0588                         
+0589                         * INTERNAL BREAK ROUTINE
+0590                         
+0591 0452 36                 INTBRK PSHA
+0592 0453 b6 80 00            LDAA ACIASTR CHECK FOR NEW CHAR
+0593 0456 84 01               ANDA #$01
+0594 0458 81 01               CMPA #$01
+0595 045a 27 02               BEQ BRKA
+0596 045c 32                  PULA GET CHAR
+0597 045d 39                  RTS RETURN	
+0598 045e b6 80 01           BRKA LDAA ACIADTR CHECK FOR CTRL C 
+0599 0461 81 03               CMPA #$03
+0600 0463 27 02               BEQ BRKB
+0601 0465 32                  PULA GET CHAR
+0602 0466 39                  RTS RETURN
+0603 0467 86 99              BRKB LDAA #$99 BREAK AND DISPLAY ERROR 99
+0604                         
+0605                         * OUTPUT ERROR MESSAGE
+0606                         
+0607 0469 36                 MISTAK PSHA SAVE A
+0608 046a bd 02 ea            JSR PCRLF OUTPUT A CR & LF
+0609 046d ce 04 a0           MISTA1 LDX #ERRSTR POINT TO ERROR STRING
+0610 0470 bd 02 ef            JSR PDATA1 OUTPUT IT
+0611 0473 32                  PULA RESTORE A
+0612 0474 36                  PSHA SAVE A
+0613 0475 bd 04 44            JSR OUTHL OUTPUT DIGIT
+0614 0478 32                 MISTA2 PULA RESTORE A
+0615 0479 bd 04 48            JSR OUTHR OUT 1'S DIGIT
+0616 047c d6 19               LDAB RUNFLG RUNNING?
+0617 047e 26 03               BNE RUNER1
+0618 0480 7e 01 b0           MISTA4 JMP FILBUF
+0619 0483 ce 04 a9           RUNER1 LDX #ERSTR2 POINT TO STRING
+0620 0486 bd 02 ef            JSR PDATA1 OUTPUT IT
+0621 0489 de 04               LDX BUFPNT SET POINTER
+0622 048b 09                 RUNER2 DEX DEC THE POINTER
+0623 048c 8c 0d 57            CPX #STORSP BEGINNING? 
+0624 048f 27 07               BEQ RUNER4
+0625 0491 a6 00               LDAA 0,X GET CHAR
+0626 0493 81 0d               CMPA #$D C.R.?
+0627 0495 26 f4               BNE RUNER2
+0628 0497 08                  INX BUMP THE POINTER
+0629 0498 c6 01              RUNER4 LDAB #1 
+0630 049a 0c                  CLC
+0631 049b bd 03 c5            JSR OUTBC2 OUT LINE NUM. 
+0632 049e 20 e0               BRA MISTA4
+0633 04a0 07                 ERRSTR FCB 7
+0634 04a1 45 52 52 4f 52 20   FCC ;ERROR #;
+     23
+0635 04a8 04                  FCB 4
+0636                         
+0637 04a9 20 41 54 20        ERSTR2 FCC ; AT ;
+0638 04ad 04                  FCB 4
+0639                         
+0640                         * PRINT ROUTINE
+0641                         
+0642 04ae bd 03 6f           PRINT JSR NXTSPC FIND NEXT BLOCK
+0643 04b1 bd 03 08           PRINT0 JSR TSTTRM 
+0644 04b4 26 03               BNE FIELD1 
+0645 04b6 7e 05 44            JMP PRINT8
+0646 04b9 7f 00 12           FIELD1 CLR CRFLAG
+0647 04bc 81 2c               CMPA #', IS IT A "," 
+0648 04be 26 20               BNE PRINT2
+0649 04c0 d6 1d               LDAB FLDCNT GET COUNT
+0650 04c2 86 20              FIELD2 LDAA #'  SPACE
+0651 04c4 bd 04 4c            JSR OUTCH OUTPUT A SPACE 
+0652 04c7 5c                  INCB
+0653 04c8 c5 07               BITB #7 END OF FIELD? 
+0654 04ca 26 f6               BNE FIELD2
+0655 04cc c1 47               CMPB #$47 END OF LINE? 
+0656 04ce 22 04               BHI FIELD3
+0657 04d0 d7 1d               STAB FLDCNT SAVE FIELD INFO 
+0658 04d2 20 03               BRA PRINT1
+0659 04d4 bd 02 ea           FIELD3 JSR PCRLF OUT A C.R. & L.F.
+0660 04d7 7c 00 12           PRINT1 INC CRFLAG SET FLAG
+0661 04da 08                  INX BUMP THE POINTER 
+0662 04db bd 03 68            JSR SKIPSP
+0663 04de 20 d1               BRA PRINT0
+0664 04e0 81 3b              PRINT2 CMPA #'; IS IT A ";"
+0665 04e2 27 f3               BEQ PRINT1
+0666 04e4 81 22               CMPA #'" IS IT A QUOTE? 
+0667 04e6 26 05               BNE PRINT4
+0668 04e8 08                  INX BUMP THE POINTER
+0669 04e9 8d 64               BSR PSTRNG OUTPUT STRING 
+0670 04eb 20 49               BRA PRINT6
+0671 04ed 7f 00 17           PRINT4 CLR TABFLG CLEAR FLAG
+0672 04f0 81 54               CMPA #'T IS IT A T?
+0673 04f2 26 06               BNE PRIN45
+0674 04f4 97 17               STAA TABFLG SET FLAG 
+0675 04f6 86 41               LDAA #'A
+0676 04f8 20 06               BRA PRIN47
+0677 04fa 81 53              PRIN45 CMPA #'S IS IT A S?
+0678 04fc 26 2e               BNE PRIN55 
+0679 04fe 86 50               LDAA #'P
+0680 0500 a1 01              PRIN47 CMPA 1,X
+0681 0502 26 28               BNE PRIN55
+0682 0504 bd 03 71            JSR NXTSP4 FIND NEXT
+0683 0507 bd 0a 2e            JSR EXPR EVALUATE
+0684 050a bd 06 26            JSR BINCON CONVERT 
+0685 050d d6 64               LDAB NUMBER+2
+0686 050f 27 25               BEQ PRINT6
+0687 0511 96 17               LDAA TABFLG CHECK FLAG
+0688 0513 27 07               BEQ PRINT5 
+0689 0515 5a                  DECB
+0690 0516 d1 1d               CMPB FLDCNT CHECK COUNT
+0691 0518 23 1c               BLS PRINT6
+0692 051a 20 02               BRA PRIN51
+0693 051c db 1d              PRINT5 ADDB FLDCNT
+0694 051e 86 20              PRIN51 LDAA #'  SPACE
+0695 0520 bd 04 4c            JSR OUTCH OUTPUT SPACE
+0696 0523 7c 00 1d            INC FLDCNT BUMP COUNTER 
+0697 0526 d1 1d               CMPB FLDCNT
+0698 0528 26 f4               BNE PRIN51 REPEAT
+0699 052a 20 0a              PRIN52 BRA PRINT6
+0700 052c bd 0a 2e           PRIN55 JSR EXPR EVAL EXPRESSION
+0701 052f df 22               STX XSAVE SAVE POINTER
+0702 0531 bd 03 b1            JSR OUTBCD OUTPUT VALUE
+0703 0534 de 22               LDX XSAVE RESTORE
+0704 0536 bd 0c e6           PRINT6 JSR SKYCLS
+0705 0539 5a                  DECB
+0706 053a 26 03               BNE PRINT7 CHECK FOR ERROR
+0707 053c 7e 04 b1            JMP PRINT0
+0708 053f 86 31              PRINT7 LDAA #$31 
+0709 0541 7e 04 69            JMP MISTAK
+0710 0544 7d 00 12           PRINT8 TST CRFLAG C.R. ?
+0711 0547 26 03               BNE PRINT9
+0712 0549 bd 02 ea            JSR PCRLF OUTPUT C.R. L.F 
+0713 054c 7e 07 0c           PRINT9 JMP RUNEXC
+0714                         
+0715                         * PRINT STRING ROUTINE
+0716                         
+0717 054f a6 00              PSTRNG LDAA 0,X GET A CHAR.
+0718 0551 81 22               CMPA #'" IS I T A QUOTE? 
+0719 0553 27 0e               BEQ PSTRN4
+0720 0555 bd 03 08            JSR TSTTRM IS IT A C.R.? 
+0721 0558 27 0d               BEQ PSTRN8
+0722 055a bd 04 4c            JSR OUTCH OUTPUT CHARACTER
+0723 055d 7c 00 1d            INC FLDCNT BUMP FIELD CNT
+0724 0560 08                  INX BUMP THE POINTER
+0725 0561 20 ec               BRA PSTRNG REPEAT
+0726 0563 08                 PSTRN4 INX
+0727 0564 7e 03 68            JMP SKIPSP
+0728 0567 86 32              PSTRN8 LDAA #$32
+0729 0569 7e 04 69            JMP MISTAK REPORT ERROR
+0730                         
+0731                         * FIND LABLE ROUTINE
+0732                         
+0733 056c df 04              FNDVAR STX BUFPNT SAVE POINTER
+0734 056e bd 0c ed            JSR CLASS1 GO CLASSIFY CHAR.
+0735 0571 c1 02               CMPB #2 CHECK FOR LETTER
+0736 0573 26 2f               BNE FNDL25 ERROR 
+0737 0575 7f 00 20            CLR XTEMP
+0738 0578 16                  TAB SAVE LABLE
+0739 0579 48                  ASLA MULT IT BY 2
+0740 057a 1b                  ABA ADD IT 
+0741 057b 80 13               SUBA #$13
+0742 057d 97 21               STAA XTEMP+1
+0743 057f de 20               LDX XTEMP POINT TO IT
+0744 0581 39                  RTS RETURN
+0745                         
+0746                         * FIND DIMENSIONED VARIABLE
+0747                         
+0748 0582 a6 00              FNDLB0 LDAA 0,X
+0749 0584 08                 FNDLBL INX ADVANCE POINTER
+0750 0585 7f 00 18            CLR DIMFLG
+0751 0588 8d e2               BSR FNDVAR GO FIND VAR. 
+0752 058a 5f                  CLRB
+0753 058b a6 00               LDAA 0,X GET CHAR.
+0754 058d 81 0a               CMPA #$0A CHECK FOR 1 DIM 
+0755 058f 27 06               BEQ FNDLB2
+0756 0591 81 0b               CMPA #$0B CHECK IF 2 DIM 
+0757 0593 27 01               BEQ FNDLB1
+0758 0595 39                  RTS
+0759 0596 5c                 FNDLB1 INCB SET FLAG-2 DIM
+0760 0597 a6 01              FNDLB2 LDAA 1,X SET POINTER 
+0761 0599 36                  PSHA
+0762 059a a6 02               LDAA 2,X
+0763 059c 36                  PSHA
+0764 059d 37                  PSHB SAVE B
+0765 059e bd 03 6f            JSR NXTSPC FIND NEXT 
+0766 05a1 33                  PULB
+0767 05a2 81 28               CMPA #'( IS IT A PAREN?
+0768 05a4 26 71              FNDL25 BNE FNDLB9
+0769 05a6 5d                  TSTB
+0770 05a7 27 13               BEQ FNDLB3 
+0771 05a9 08                  INX
+0772 05aa bd 0a 31            JSR EXPRO GO EVALUATE 
+0773 05ad 96 64               LDAA NUMBER+2 GET RESULT
+0774 05af 36                  PSHA SAVE IT
+0775 05b0 bd 0b 6a            JSR STAKDN RESTORE
+0776 05b3 bd 03 6f            JSR NXTSPC FIND NEXT
+0777 05b6 81 2c               CMPA #', IS IT A COMMA? 
+0778 05b8 26 5d               BNE FNDLB9
+0779 05ba 20 02               BRA FNDLB4
+0780 05bc 4f                 FNDLB3 CLRA
+0781 05bd 36                  PSHA SET ROWV
+0782 05be 4c                 FNDLB4 INCA
+0783 05bf 97 18               STAA DIMFLG SET FLAG 
+0784 05c1 08                  INX
+0785 05c2 bd 0a 31            JSR EXPRO
+0786 05c5 08                  INX
+0787 05c6 df 04               STX BUFPNT SAVE POINTER 
+0788 05c8 32                  PULA
+0789 05c9 97 14               STAA ROWVAR SAVE 
+0790 05cb 32                  PULA
+0791 05cc 97 21               STAA XTEMP+1 SAVE 
+0792 05ce 32                  PULA
+0793 05cf 97 20               STAA XTEMP SAVE
+0794 05d1 de 20               LDX XTEMP SET POINTER
+0795 05d3 a6 00               LDAA 0,X GET CHAR
+0796 05d5 97 16               STAA COLCON SAVE IT
+0797 05d7 08                  INX BUMP THE POINTER 
+0798 05d8 08                  INX
+0799 05d9 df 20               STX XTEMP
+0800 05db bd 03 0f            JSR UPSCLR
+0801 05de 96 14               LDAA ROWVAR GET VAR.
+0802 05e0 de 20               LDX XTEMP
+0803 05e2 09                  DEX DEC POINTER
+0804 05e3 a1 00               CMPA 0,X CHECK
+0805 05e5 22 30               BHI FNDLB9 
+0806 05e7 97 64               STAA NUMBER+2
+0807 05e9 bd 03 0f            JSR UPSCLR PUSH STACK
+0808 05ec 96 16               LDAA COLCON GET CONST,
+0809 05ee 91 5e               CMPA AC-1 CHECK
+0810 05f0 27 02               BEQ FNDL45
+0811 05f2 23 23               BLS FNDLB9 ERROR!
+0812 05f4 8b 01              FNDL45 ADDA #1
+0813 05f6 19                  DAA BIAS IT 
+0814 05f7 97 64               STAA NUMBER+2
+0815 05f9 bd 0b fc            JSR MULT GO MULTIPLY
+0816 05fc bd 0b d2            JSR ADD GO ADD
+0817 05ff bd 06 1c           FNDLB5 JSR TIMTHR
+0818                         
+0819                         * ROUTINE TO ADD VALUE TO X-REG.
+0820                         
+0821 0602 96 20              ADDX LDAA XTEMP GET M.S.BYTE 
+0822 0604 d6 21               LDAB XTEMP+1 
+0823 0606 db 64               ADDB NUMBER+2 
+0824 0608 99 63               ADCA NUMBER+1
+0825 060a 97 20               STAA XTEMP SAVE SUM 
+0826 060c d7 21               STAB XTEMP+1
+0827 060e bd 0b 6a            JSR STAKDN
+0828 0611 de 20               LDX XTEMP SET POINTER
+0829 0613 7f 00 18            CLR DIMFLG RESTORE FLAG
+0830 0616 39                  RTS RETURN
+0831                         
+0832 0617 86 14              FNDLB9 LDAA #$14 SET ERROR
+0833 0619 7e 04 69            JMP MISTAK GO REPORT
+0834                         
+0835                         * ROUTINE TO MULTIPLY BY 3
+0836                         
+0837 061c bd 03 0f           TIMTHR JSR UPSCLR
+0838 061f 86 03               LDAA #$3 SET MULTIPLIER 
+0839 0621 97 64               STAA NUMBER+2
+0840 0623 bd 0b fc            JSR MULT GO MULTIPLY
+0841                         
+0842                         * BCD TO BINARY CONVERT.
+0843                         
+0844 0626 96 64              BINCON LDAA NUMBER+2 GET LS BYTE
+0845 0628 36                  PSHA SAVE 
+0846 0629 96 63               LDAA NUMBER+1
+0847 062b 36                  PSHA SAVE: 
+0848 062c 5f                  CLRB
+0849 062d d7 63               STAB NUMBER+1
+0850 062f d7 64               STAB NUMBER+2 INITIALIZE 
+0851 0631 96 62               LDAA NUMBER
+0852 0633 8d 12               BSR ADSHF1 ADDAND SHIFT 
+0853 0635 32                  PULA
+0854 0636 36                  PSHA
+0855 0637 8d 0a               BSR ADSHF0 GO ADD IN AND SHIFT
+0856 0639 32                  PULA GET MS BYTE AGAIN
+0857 063a 8d 0b               BSR ADSHF1 GO ADD IN AND SHIFT
+0858 063c 32                  PULA GET LS BYTE 
+0859 063d 36                  PSHA
+0860 063e 8d 03               BSR ADSHF0 
+0861 0640 32                  PULA
+0862 0641 20 1d               BRA ADDIN G0 ADD IN ONES
+0863 0643 44                 ADSHF0 LSRA
+0864 0644 44                  LSRA 
+0865 0645 44                  LSRA
+0866 0646 44                  LSRA MOVE TO LS HALF
+0867 0647 8d 17              ADSHF1 BSR ADDIN GO ADD IN
+0868 0649 d6 63               LDAB NUMBER+1
+0869 064b 48                  ASLA
+0870 064c 59                  ROLB MULT BY 2 
+0871 064d 37                  PSHB
+0872 064e 36                  PSHA SAVE 
+0873 064f 48                  ASLA
+0874 0650 59                  ROLB 
+0875 0651 48                  ASLA
+0876 0652 59                  ROLB MULT BY 4, =*8 
+0877 0653 97 64               STAA NUMBER+2
+0878 0655 32                  PULA
+0879 0656 d7 63               STAB NUMBER+1
+0880 0658 8d 08               BSR ADDIN1 GO ADD IN 
+0881 065a 32                  PULA
+0882 065b 9b 63               ADDA NUMBER+1
+0883 065d 97 63               STAA NUMBER+1 MULTIPLY BY TEN 
+0884 065f 39                  RTS
+0885 0660 84 0f              ADDIN ANDA #$0F MASK
+0886 0662 9b 64              ADDIN1 ADDA NUMBER+2
+0887 0664 97 64               STAA NUMBER+2
+0888 0666 24 03               BCC ADDIN2 CHECK FOR CARRY 
+0889 0668 7c 00 63            INC NUMBER+1
+0890 066b 39                 ADDIN2 RTS
+0891                         
+0892                         * PUT LABLE ROUTINE
+0893                         
+0894 066c 96 62              PUTLBL LDAA NUMBER
+0895 066e a7 00               STAA 0,X PUT M.S. BYTE
+0896 0670 96 63              PUTLB2 LDAA NUMBER+1
+0897 0672 a7 01               STAA 1,X PUT NEXT 
+0898 0674 96 64               LDAA NUMBER+2
+0899 0676 a7 02               STAA 2,X PUT L.S. BYTE
+0900 0678 39                  RTS RETURN
+0901                         
+0902                         * DIMENSION
+0903                         
+0904 0679 de 06              DIM LDX FORSTK SET BOUNDS 
+0905 067b df 37               STX CPX1
+0906 067d bd 03 6f            JSR NXTSPC
+0907 0680 bd 03 68           DIMN JSR SKIPSP CLASSIFY
+0908 0683 bd 05 6c            JSR FNDVAR
+0909 0686 df 0a               STX XTEMP3 SAVE IT
+0910 0688 bd 03 6f            JSR NXTSPC GET TO NEXT
+0911 068b 81 28               CMPA #'( IS IT A PARENT 
+0912 068d 26 20               BNE DIM9
+0913 068f 08                 DIM01 INX BUMP THE POINTER
+0914 0690 bd 03 64            JSR CONSKP CONVERT DIM
+0915 0693 81 29               CMPA #') IS IT A PAREN 
+0916 0695 26 05               BNE DIM1
+0917 0697 4f                  CLRA
+0918 0698 5f                  CLRB
+0919 0699 36                  PSHA SAVE IT 
+0920 069a 20 18               BRA DIM2
+0921 069c 81 2c              DIM1 CMPA #', COMMA?
+0922 069e 26 0f               BNE DIM9 ERROR!
+0923 06a0 96 64               LDAA NUMBER+2
+0924 06a2 27 0b               BEQ DIM9
+0925 06a4 36                  PSHA SAVE
+0926 06a5 08                  INX BUMP THE POINTER
+0927 06a6 bd 03 64            JSR CONSKP CONVERT 
+0928 06a9 c6 01               LDAB #1
+0929 06ab 81 29               CMPA #') PAREN? 
+0930 06ad 27 05               BEQ DIM2
+0931 06af 86 40              DIM9 LDAA #$40 SET ERROR
+0932 06b1 7e 04 69            JMP MISTAK REPORT
+0933 06b4 96 64              DIM2 LDAA NUMBER+2
+0934 06b6 27 f7               BEQ DIM9
+0935 06b8 36                  PSHA SAVE
+0936 06b9 df 04               STX BUFPNT SAVE POINTER
+0937 06bb de 0a               LDX XTEMP3 SET X 
+0938 06bd 86 0a               LDAA #$0A
+0939 06bf 1b                  ABA SET MARKER
+0940 06c0 a7 00               STAA 0,X SAVE IT
+0941 06c2 96 08               LDAA DIMPNT GET POINTER
+0942 06c4 a7 01               STAA 1,X SAVE IT 
+0943 06c6 96 09               LDAA DIMPNT+1 
+0944 06c8 a7 02               STAA 2,X
+0945 06ca de 08               LDX DIMPNT SET POINTER 
+0946 06cc 32                  PULA
+0947 06cd a7 00               STAA 0,X SAVE 1ST DIM
+0948 06cf 08                  INX BUMP THE POINTER 
+0949 06d0 33                  PULB
+0950 06d1 e7 00               STAB 0,X SAVE 2ND DIM 
+0951 06d3 08                  INX
+0952 06d4 df 20               STX XTEMP SAVE POINTER 
+0953 06d6 8b 01               ADDA #1
+0954 06d8 19                  DAA BIAS 
+0955 06d9 36                  PSHA
+0956 06da 17                  TBA
+0957 06db 8b 01               ADDA #1 BIAS
+0958 06dd 19                  DAA ADJUST
+0959 06de 16                  TAB SAVE
+0960 06df bd 03 12            JSR CLRNUM CLEAR STORAGE 
+0961 06e2 d7 64               STAB NUMBER+2
+0962 06e4 bd 03 0f            JSR UPSCLR GO CLEAR 
+0963 06e7 32                  PULA
+0964 06e8 97 64               STAA NUMBER+2
+0965 06ea bd 0b fc            JSR MULT MULTIPLY
+0966 06ed bd 05 ff            JSR FNDLB5 GO FIX X
+0967 06f0 bd 0c b9            JSR CMPX TEST BOUNDS 
+0968 06f3 23 03               BLS DIM5
+0969 06f5 7e 02 a0            JMP ADJEN2
+0970 06f8 df 08              DIM5 STX DIMPNT SAVE RESULT
+0971 06fa de 04               LDX BUFPNT RESTORE F'NTR 
+0972 06fc 08                  INX
+0973 06fd bd 03 68            JSR SKIPSP SKIP SPACES 
+0974 0700 bd 03 08            JSR TSTTRM
+0975 0703 27 07               BEQ RUNEXC
+0976 0705 08                  INX BUMP THE POINTER
+0977 0706 7e 06 80            JMP DIMN
+0978                         
+0979                         * EXTERNAL ROUTINE JUMP
+0980                         
+0981 0709 bd 1f 00           EXTRNL JSR EXTERN GO TO IT 
+0982                         
+0983                         * RUN EXECUTIVE
+0984                         
+0985 070c 4f                 RUNEXC CLRA
+0986 070d 97 12               STAA CRFLAG 
+0987 070f 97 1c               STAA LETFLG 
+0988 0711 97 18               STAA DIMFLG 
+0989 0713 97 2c               STAA STKCNT
+0990 0715 96 19               LDAA RUNFLG RUN MODE?
+0991 0717 26 03               BNE RUNEX0
+0992 0719 7e 01 b0           RUNEXA JMP FILBUF
+0993 071c de 04              RUNEX0 LDX BUFPNT SET POINTER
+0994 071e 86 0d              RUNE05 LDAA #$D
+0995 0720 c6 3a               LDAB #': SETUP TERMINATORS
+0996 0722 a1 00              RUNEX1 CMPA 0,X C.R. ?
+0997 0724 27 07               BEQ RUNEX2
+0998 0726 e1 00               CMPB 0,X IS IT A ':' ? 
+0999 0728 27 0a               BEQ RUNE27
+1000 072a 08                  INX BUMP THE POINTER
+1001 072b 20 f5               BRA RUNEX1 REPEAT
+1002 072d 08                 RUNEX2 INX
+1003 072e bc 0d 55           RUNE22 CPX ENDSTR END OF STORAGE?
+1004 0731 27 e6               BEQ RUNEXA
+1005 0733 08                 RUNE25 INX BUMP THE POINTER
+1006 0734 08                 RUNE27 INX
+1007 0735 bd 01 0c            JSR BREAK GO CHECK BREAK
+1008 0738 bd 03 7b           RUNEX3 JSR FNDKEY FIND KEY WORD 
+1009 073b 4d                  TSTA
+1010 073c 26 0b               BNE RUNEX4
+1011 073e de 04               LDX BUFPNT SET POINTER 
+1012 0740 8d 0b               BSR TSTLET
+1013 0742 27 05               BEQ RUNEX4 
+1014 0744 86 10               LDAA #$10
+1015 0746 7e 04 69           RUNE35 JMP MISTAK
+1016 0749 ee 00              RUNEX4 LDX 0,X
+1017 074b 6e 00               JMP 0,X GO TO ROUTINE
+1018                         
+1019                         * TEST FOR IMPLIED LET
+1020                         
+1021 074d bd 0c eb           TSTLET JSR CLASS CHECK CHAR.
+1022 0750 c1 02               CMPB #2 LETTER?
+1023 0752 26 12               BNE TSTLE2
+1024 0754 08                  INX BUMP THE POINTER
+1025 0755 bd 03 68            JSR SKIPSP SKIP SPACES
+1026 0758 81 3d               CMPA #'= EQUALS?
+1027 075a 27 04               BEQ TSTLE1
+1028 075c 81 28               CMPA #'( LEFT PARENT 
+1029 075e 26 06               BNE TSTLE2
+1030 0760 ce 01 23           TSTLE1 LDX #LETADR SET POINTER
+1031 0763 97 1c               STAA LETFLG SET FLAG 
+1032 0765 5f                  CLRB
+1033 0766 39                 TSTLE2 RTS
+1034                         
+1035                         * RUN ROUTINE
+1036                         
+1037 0767 bd 01 8b           RUN JSR CLRBEG 
+1038 076a bd 01 95            JSR CLREND 
+1039 076d fe 01 0f            LDX MEMEND
+1040 0770 df 06               STX FORSTK
+1041 0772 ce 0d 57            LDX #STORSP SET POINTER 
+1042 0775 7c 00 19            INC RUNFLG
+1043 0778 20 b4               BRA RUNE22
+1044                         
+1045                         * LET ROUTINE
+1046                         
+1047 077a de 04              LET LDX BUFPNT
+1048 077c 96 1c               LDAA LETFLG TEST FLAG 
+1049 077e 26 03               BNE LET2
+1050 0780 bd 03 59            JSR NXTBLK FIND NEXT
+1051 0783 bd 09 6d           LET2 JSR EXPEQU
+1052 0786 7e 07 0c            JMP RUNEXC
+1053                         
+1054                         * GOTO ROUTINE
+1055                         
+1056 0789 bd 03 6f           GOTO JSR NXTSPC FIND BLOCK
+1057 078c bd 0a 2e           GOTO1 JSR EXPR GO EVALUATE
+1058 078f bd 02 a5           GOTO2 JSR FNDLIN GO FIND LINE
+1059 0792 5d                 GOTO3 TSTB FIND?
+1060 0793 27 05               BEQ GOTO5
+1061 0795 86 16               LDAA #$16 SET ERROR
+1062 0797 7e 04 69           GOTO4 JMP MISTAK REPORT 
+1063 079a 5c                 GOTO5 INCB
+1064 079b d7 19               STAB RUNFLG SET RUN FLAG 
+1065 079d 7e 07 2e            JMP RUNE22
+1066                         
+1067                         * INPUT ROUTINE
+1068                         
+1069 07a0 bd 03 6f           INPUT JSR NXTSPC FIND NEXT
+1070 07a3 7f 00 13           INPUT0 CLR QMFLAG CLEAR FLAG
+1071 07a6 bd 03 68           INPUT1 JSR SKIPSP SKIP SPACES
+1072 07a9 81 22               CMPA #'" IS IT A QUOTE?
+1073 07ab 26 06               BNE INPUT2
+1074 07ad 08                  INX BUMP THE POINTER
+1075 07ae bd 05 4f            JSR PSTRNG OUTPUT STRING 
+1076 07b1 20 3b               BRA INPUT6
+1077 07b3 bd 05 84           INPUT2 JSR FNDLBL FIND LABLE
+1078 07b6 df 33               STX XTEMP4 SAVE POINTER
+1079 07b8 ce 00 68           INPUT3 LDX #BUFFER SET POINTER
+1080 07bb 96 13               LDAA QMFLAG TEST FLAG
+1081 07bd 26 07               BNE INPUT4 
+1082 07bf 86 3f               LDAA #'?
+1083 07c1 97 13               STAA QMFLAG SET FLAG
+1084 07c3 bd 04 4c            JSR OUTCH OUT A ?
+1085 07c6 bd 01 09           INPUT4 JSR INCH GET A DIGIT
+1086 07c9 81 18               CMPA #DELCOD DELETE?
+1087 07cb 26 05               BNE INPU45
+1088 07cd 7f 00 13            CLR QMFLAG
+1089 07d0 20 e6               BRA INPUT3
+1090 07d2 a7 00              INPU45 STAA 0,X SAVE IT
+1091 07d4 08                  INX
+1092 07d5 81 2c               CMPA #', 1S IT COMMA? 
+1093 07d7 27 09               BEQ INPUT5
+1094 07d9 81 0d               CMPA #$D IS IT A C.R.?
+1095 07db 26 e9               BNE INPUT4 
+1096 07dd 97 12               STAA CRFLAG SET FLAG
+1097 07df bd 02 ea            JSR PCRLF OUTPUT A CR & LF
+1098 07e2 ce 00 68           INPUT5 LDX #BUFFER SET POINTER
+1099 07e5 bd 03 1a            JSR BCDCON GO CNVRT NUM. 
+1100 07e8 de 33               LDX XTEMP4
+1101 07ea 8d 2d               BSR LABLS2
+1102 07ec df 04               STX BUFPNT SAVE POINTER
+1103 07ee 81 2c              INPUT6 CMPA #', IS IT A COMMA?
+1104 07f0 26 07               BNE INPUT7 
+1105 07f2 08                  INX
+1106 07f3 96 12               LDAA CRFLAG TEST FLAG
+1107 07f5 27 af               BEQ INPUT1
+1108 07f7 20 aa               BRA INPUT0
+1109 07f9 bd 03 08           INPUT7 JSR TSTTRM
+1110 07fc 26 13               BNE INPUT9
+1111 07fe 96 12              INPU72 LDAA CRFLAG TEST FLAG
+1112 0800 27 03               BEQ INPUT8
+1113 0802 7e 07 0c           INPU75 JMP RUNEXC
+1114 0805 bd 01 09           INPUT8 JSR INCH GET CHAR.
+1115 0808 81 0d               CMPA #$D C.R.?
+1116 080a 26 f9               BNE INPUT8
+1117 080c bd 02 ea            JSR PCRLF
+1118 080f 20 f1               BRA INPU75
+1119 0811 86 45              INPUT9 LDAA #$45
+1120 0813 7e 04 69            JMP MISTAK REPORT ERROR
+1121                         
+1122                         
+1123                         * GET AND PUT LABLE
+1124                         
+1125 0816 bd 05 84           LABLES JSR FNDLBL GO FIND IT
+1126 0819 bd 06 6c           LABLS2 JSR PUTLBL GO PUT IT
+1127 081c 7e 03 6f            JMP NXTSPC GET TO NEXT SET
+1128                         
+1129                         
+1130                         * DATA ROUTINE
+1131                         
+1132 081f 96 19              DATA LDAA RUNFLG RUNNING?
+1133 0821 27 49               BEQ READ6
+1134 0823 bd 03 6f            JSR NXTSPC FIND NEXT
+1135 0826 97 1a               STAA DATAFL SET DATA FLAG
+1136 0828 df 0c               STX DATAST SET POINTER 
+1137 082a df 0e               STX DATAPT
+1138 082c 20 3e               BRA READ6 RETURN
+1139                         
+1140                         
+1141                         * READ DATA ROUTINE
+1142                         
+1143 082e 96 19              READ LDAA RUNFLG RUNNING?
+1144 0830 27 3a               BEQ READ6
+1145 0832 96 1a               LDAA DATAFL CHECK FLAG 
+1146 0834 27 39               BEQ READ8
+1147 0836 bd 03 59            JSR NXTBLK GET NEXT
+1148 0839 bd 03 68           READ2 JSR SKIPSP GO CLASSIFY
+1149 083c bd 05 84            JSR FNDLBL
+1150 083f df 33               STX XTEMP4
+1151 0841 de 04               LDX BUFPNT
+1152 0843 df 35               STX XTEMP5 SAVE IT
+1153 0845 de 0e               LDX DATAPT GET DATA PNTR
+1154 0847 bd 0a 2e            JSR EXPR GET DATA
+1155 084a a6 00               LDAA 0,X GET CHAR.
+1156 084c bd 03 08            JSR TSTTRM TEST IT
+1157 084f 26 04               BNE READ25
+1158 0851 de 0c               LDX DATAST SET POINTER 
+1159 0853 20 01               BRA READ3
+1160 0855 08                 READ25 INX BUMP THE POINTER
+1161 0856 df 0e              READ3 STX DATAPT
+1162 0858 de 35               LDX XTEMP5
+1163 085a df 04               STX BUFPNT
+1164 085c de 33               LDX XTEMP4
+1165 085e 8d b9               BSR LABLS2
+1166 0860 81 2c               CMPA #', IS IT A COMMA? 
+1167 0862 26 03               BNE READ4
+1168 0864 08                  INX
+1169 0865 20 d2               BRA READ2 REPEAT
+1170 0867 bd 03 08           READ4 JSR TSTTRM
+1171 086a 26 03               BNE READ8 ERROR
+1172 086c 7e 07 0c           READ6 JMP RUNEXC RETURN
+1173 086f 86 51              READ8 LDAA #$51
+1174 0871 7e 04 69            JMP MISTAK
+1175                         
+1176                         * RESTORE DATA STRING
+1177                         
+1178 0874 df 22              RESTOR STX XSAVE SAVE POINTER
+1179 0876 de 0c               LDX DATAST
+1180 0878 df 0e               STX DATAPT FIX DATA PNTR
+1181 087a de 22               LDX XSAVE RESTORE POINTER 
+1182 087c 20 ee               BRA READ6
+1183                         
+1184                         * ON GOTO ROUTINE
+1185 087e bd 03 59           ONGOTO JSR NXTBLK FIND NEXT BLOCK
+1186 0881 bd 0a 2e            JSR EXPR EVAL. EXPR.
+1187 0884 96 64               LDAA NUMBER+2
+1188 0886 84 0f               ANDA #$0F MASK L.S. DIGIT
+1189 0888 36                  PSHA SAVE A
+1190 0889 7f 00 12            CLR CRFLAG
+1191 088c 08                  INX BUMP THE POINTER 
+1192 088d 08                  INX
+1193 088e a6 00               LDAA 0,X GET CHAR
+1194 0890 81 54               CMPA #'T IS IT A "T"? 
+1195 0892 27 02               BEQ ONGOT0
+1196 0894 97 12               STAA CRFLAG SET FLAG
+1197 0896 bd 03 5b           ONGOT0 JSR NXTBL4 GET NEXT
+1198 0899 df 22               STX XSAVE SAVE X
+1199 089b 32                  PULA RESTORE A
+1200 089c 4a                 ONGOT1 DECA
+1201 089d 27 11               BEQ ONGOT4
+1202 089f e6 00              ONGOT2 LDAB 0,X GET A CHAR,
+1203 08a1 08                  INX BUMP THE POINTER
+1204 08a2 c1 2c               CMPB #', IS IT A COMMA? 
+1205 08a4 26 04               BNE ONGOT3
+1206 08a6 df 22               STX XSAVE SAVE THE POINTER
+1207 08a8 20 f2               BRA ONGOT1 REPEAT
+1208 08aa c1 0d              ONGOT3 CMPB #$D C^R^ ?
+1209 08ac 26 f1               BNE ONGOT2
+1210 08ae de 22               LDX XSAVE RESTORE POINTER
+1211 08b0 d6 12              ONGOT4 LDAB CRFLAG CHECK FLAG
+1212 08b2 27 03               BEQ ONGOT6
+1213 08b4 7e 09 3a            JMP GOSUB2
+1214 08b7 7e 07 8c           ONGOT6 JMP GOTO1
+1215                         
+1216                         * ROUTINE
+1217                         
+1218 08ba bd 03 6f           IF JSR NXTSPC FIND NEXT
+1219 08bd bd 0a 2e            JSR EXPR EUAL EXPR
+1220 08c0 a6 00               LDAA 0,X GET CHAR
+1221 08c2 8d 63               BSR CLSREL REL OPERATOR?
+1222 08c4 26 5c               BNE IF9 ERROR!
+1223 08c6 36                  PSHA SAVE A
+1224 08c7 a6 01               LDAA 1,X GET CHAR
+1225 08c9 8d 5c               BSR CLSREL REL OP?
+1226 08cb 32                  PULA RESTORE A 
+1227 08cc 26 04               BNE IF1
+1228 08ce e6 01               LDAB 1,X
+1229 08d0 1b                  ABA FORM REL CODE
+1230 08d1 08                  INX BUMP THE POINTER
+1231 08d2 08                 IF1 INX
+1232 08d3 36                  PSHA SAVE A
+1233 08d4 bd 0a 2e            JSR EXPR EVAL EXPR 
+1234 08d7 32                  PULA
+1235 08d8 84 0f               ANDA #$0F MASK
+1236 08da 80 09               SUBA #9 BIAS IT
+1237 08dc 2b 44               BMI IF9 ERROR?
+1238 08de 48                  ASLA TIMES FOUR 
+1239 08df 48                  ASLA
+1240 08e0 b7 08 ea            STAA OFSET3+1
+1241 08e3 bd 0b cc            JSR SUB GO COMPARE
+1242 08e6 bd 0c c6            JSR ZCHK SET CC REG
+1243 08e9 20 fe              OFSET3 BRA *
+1244 08eb 2f 18              BRATBL BLE IF4 BRANCH TABLE 
+1245 08ed 20 30               BRA IF8
+1246 08ef 26 14               BNE IF4
+1247 08f1 20 2c               BRA IF8
+1248 08f3 2c 10               BGE IF4
+1249 08f5 20 28               BRA IF8
+1250 08f7 2d 0c               BLT IF4
+1251 08f9 20 24               BRA IF8
+1252 08fb 27 08               BEQ IF4
+1253 08fd 20 20               BRA IF8
+1254 08ff 2e 04               BGT IF4
+1255 0901 20 1c               BRA IF8
+1256 0903 20 1d               BRA IF9 ERROR!
+1257 0905 de 04              IF4 LDX BUFPNT SET POINTER
+1258 0907 a6 00               LDAA 0,X GET CHAR
+1259 0909 81 54               CMPA #'T IS IT A "T"? 
+1260 090b 26 0f               BNE IF6
+1261 090d bd 03 6f            JSR NXTSPC
+1262 0910 df 04               STX BUFPNT SAVE POINTER
+1263 0912 bd 0c ed            JSR CLASS1 GO CLASSIFY
+1264 0915 c1 03               CMPB #3 IS IT A NUMBER? 
+1265 0917 26 03               BNE IF6
+1266 0919 7e 07 8c            JMP GOTO1 GO TO GOTO
+1267 091c 7e 07 38           IF6 JMP RUNEX3
+1268 091f 7e 07 0c           IF8 JMP RUNEXC GO PROCESS CMND
+1269 0922 86 62              IF9 LDAA #$62 SET ERROR
+1270 0924 7e 04 69            JMP MISTAK
+1271                         
+1272                         * CLASSIFY RELATIONAL OPERATION
+1273                         
+1274 0927 81 3b              CLSREL CMPA #$3B
+1275 0929 23 06               BLS CLSRE5
+1276 092b 81 3e               CMPA #$3E CHECK CHAR 
+1277 092d 22 02               BHI CLSRE5
+1278 092f 5f                  CLRB CLEAR FLAG
+1279 0930 39                  RTS RETURN
+1280 0931 5c                 CLSRE5 INCB SET FLAG
+1281 0932 39                  RTS RETURN
+1282                         
+1283                         * GOSUB ROUTINE
+1284                         
+1285 0933 d6 19              GOSUB LDAB RUNFLG
+1286 0935 27 e8               BEQ IF8
+1287 0937 bd 03 6f            JSR NXTSPC FIND NEXT
+1288 093a 7c 00 1b           GOSUB2 INC SUBCNT
+1289 093d bd 0a 2e            JSR EXPR EVALUATE EXPR 
+1290 0940 09                  DEX
+1291 0941 bd 02 c6            JSR FNDCRT FIND C.R.
+1292 0944 08                  INX BUMP THE POINTER
+1293 0945 a6 00               LDAA 0,X GET LINE NO 
+1294 0947 36                  PSHA
+1295 0948 a6 01               LDAA 1,X
+1296 094a 36                  PSHA SAVE AS RET. ADD. 
+1297 094b 9f 37               STS CPX1 SAVE SP
+1298 094d ce a0 23            LDX #STKBOT+35
+1299 0950 bd 0c b9            JSR CMPX CHECK BOUNDS 
+1300 0953 23 03               BLS GOSUB4
+1301 0955 7e 02 a0            JMP ADJEN2 RPT OVFL
+1302 0958 7e 07 8f           GOSUB4 JMP GOTO2
+1303                         
+1304                         * RETURN ROUTINE
+1305                         
+1306 095b 86 73              RETURN LDAA #$73
+1307 095d 7a 00 1b            DEC SUBCNT DEC COUNTER 
+1308 0960 2a 03               BPL RETUR2
+1309 0962 7e 04 69            JMP MISTAK ERROR!
+1310 0965 32                 RETUR2 PULA GET RET. ADD. 
+1311 0966 33                  PULB
+1312 0967 bd 02 a9            JSR FINDLN GO FIND LINE
+1313 096a 7e 07 92            JMP GOTO3
+1314                         
+1315                         * EXPRESSION EQUATE
+1316                         
+1317 096d bd 05 82           EXPEQU JSR FNDLB0 FIND LABLE
+1318 0970 df 33               STX XTEMP4 SAVE
+1319 0972 bd 03 6f            JSR NXTSPC 
+1320 0975 08                  INX
+1321 0976 bd 0a 2e            JSR EXPR GO EVALUATE 
+1322 0979 de 33               LDX XTEMP4 GET POINTER 
+1323 097b 7e 06 6c            JMP PUTLBL INSTALL 
+1324                         
+1325                         * FOR ROUTINE
+1326                         
+1327 097e bd 03 59           FOR JSR NXTBLK FIND NEXT
+1328 0981 36                  PSHA
+1329 0982 8d e9               BSR EXPEQU
+1330 0984 de 08               LDX DIMPNT 
+1331 0986 df 37               STX CPX1
+1332 0988 de 06               LDX FORSTK 
+1333 098a 32                  PULA
+1334 098b a7 00               STAA 0,X
+1335 098d 96 05               LDAA BUFPNT+1 
+1336 098f 09                  DEX DEC THE POINTER 
+1337 0990 a7 00               STAA 0,X
+1338 0992 96 04               LDAA BUFPNT SET UP INDEX 
+1339 0994 09                  DEX
+1340 0995 a7 00               STAA 0,X 
+1341 0997 09                  DEX
+1342 0998 bd 0c b9            JSR CMPX CHECK FOR OVFLW 
+1343 099b 22 03               BHI FOR5
+1344 099d 7e 02 a0            JMP ADJEN2
+1345 09a0 df 06              FOR5 STX FORSTK SAVE POINTER
+1346 09a2 7e 07 0c            JMP RUNEXC
+1347                         
+1348                         * NEXT ROUTINE
+1349                         
+1350 09a5 bd 03 59           NEXT JSR NXTBLK FIND NEXT
+1351 09a8 df 1e               STX NXPNTR
+1352 09aa de 06               LDX FORSTK SET POINTER
+1353 09ac bc 01 0f           NEXT1 CPX MEMEND OVFLW?
+1354 09af 26 04               BNE NEXT2
+1355 09b1 de 04               LDX BUFPNT RESTORE PNTR
+1356 09b3 20 74               BRA NEXT9 ERROR!
+1357 09b5 08                 NEXT2 INX FIXUP POINTER
+1358 09b6 08                  INX 
+1359 09b7 08                  INX
+1360 09b8 a1 00               CMPA 0,X CHECK
+1361 09ba 26 f0               BNE NEXT1
+1362 09bc 09                  DEX FIX POINTER 
+1363 09bd 09                  DEX
+1364 09be 09                  DEX
+1365 09bf df 06               STX FORSTK 
+1366 09c1 08                  INX
+1367 09c2 ee 00               LDX 0,X
+1368 09c4 df 04               STX BUFPNT SAVE IT
+1369 09c6 bd 05 84            JSR FNDLBL FIND LABLE
+1370 09c9 df 33               STX XTEMP4 SAVE IT
+1371 09cb bd 03 6f            JSR NXTSPC FIND NEXT
+1372 09ce bd 0a 2e            JSR EXPR EVALUATE
+1373 09d1 bd 0b 59            JSR STAKUP
+1374 09d4 de 33               LDX XTEMP4 RESTORE PNTR
+1375 09d6 bd 0b 4c            JSR GETVAL GET LABLE VALUE 
+1376 09d9 de 04               LDX BUFPNT
+1377 09db a6 00               LDAA 0,X GET CHAR
+1378 09dd 81 53               CMPA #'S IS IT STEP? 
+1379 09df 27 08               BEQ NEXT4
+1380 09e1 bd 03 0f            JSR UPSCLR 
+1381 09e4 4c                  INCA
+1382 09e5 97 64               STAA NUMBER+2 
+1383 09e7 20 0a               BRA NEXT5
+1384 09e9 bd 03 71           NEXT4 JSR NXTSP4
+1385 09ec bd 0a 2e            JSR EXPR 
+1386 09ef 96 62               LDAA NUMBER
+1387 09f1 97 1c               STAA LETFLG SHOW NEG. 
+1388 09f3 bd 0b d2           NEXT5 JSR ADD GO ADD IN STEP
+1389 09f6 ce 00 10            LDX #TRYVAL SET POINTER
+1390 09f9 bd 06 6c            JSR PUTLBL SAVE LABLE
+1391 09fc bd 0b cc            JSR SUB COMPARE
+1392 09ff bd 0c c6            JSR ZCHK SET CC REG
+1393 0a02 d6 1c               LDAB LETFLG CHK FLAG 
+1394 0a04 2b 05               BMI NEXT6
+1395 0a06 06                  TAP SET CC
+1396 0a07 2c 12               BGE NEXT8
+1397 0a09 20 03               BRA NEXT7
+1398 0a0b 06                 NEXT6 TAP SET CC
+1399 0a0c 2f 0d               BLE NEXT8
+1400 0a0e de 06              NEXT7 LDX FORSTK
+1401 0a10 08                  INX FIXUP PNTR 
+1402 0a11 08                  INX
+1403 0a12 08                  INX
+1404 0a13 df 06               STX FORSTK SAVE IT
+1405 0a15 de 1e               LDX NXPNTR
+1406 0a17 df 04               STX BUFPNT SAVE
+1407 0a19 20 0b               BRA NEXT85
+1408 0a1b ce 00 10           NEXT8 LDX #TRYVAL 
+1409 0a1e bd 0b 4c            JSR GETVAL 
+1410 0a21 de 33               LDX XTEMP4 
+1411 0a23 bd 06 6c            JSR PUTLBL 
+1412 0a26 7e 07 0c           NEXT85 JMP RUNEXC
+1413 0a29 86 81              NEXT9 LDAA #$81 SET ERROR
+1414 0a2b 7e 04 69           NEXTIO JMP MISTAK
+1415                         
+1416                         * EXPRESSION HANDLER
+1417                         
+1418 0a2e 7f 00 2c           EXPR CLR STKCNT SET COUNT = 0
+1419 0a31 96 2c              EXPRO LDAA STKCNT
+1420 0a33 97 2d               STAA AUXCNT
+1421 0a35 8d 04               BSR EVAL
+1422 0a37 4d                  TSTA CHECK FOR ERROR
+1423 0a38 26 f1               BNE NEXTIO
+1424 0a3a 39                 EXPR1 RTS RETURN 
+1425                         *
+1426                         **EVAL 
+1427                         * EVALUATE AN ALGEBRAIC STRING 
+1428                         *
+1429 0a3b 9f fe              EVAL STS STKTOP SAVE SP TOP
+1430 0a3d bd 0c e6           EVA0A JSR SKYCLS
+1431 0a40 df 04               STX BUFPNT
+1432 0a42 c1 01               CMPB #1 SEE IF EMPTY EXPRESSION 
+1433 0a44 26 04               BNE EVAL0
+1434 0a46 86 21               LDAA #$21 
+1435 0a48 20 4a               BRA EVAL3
+1436 0a4a 54                 EVAL0 LSRB SET UP
+1437 0a4b c1 03               CMPB #3 CHECK FOR UNARY + OR -
+1438 0a4d 26 03               BNE EVAL1
+1439 0a4f bd 03 0f            JSR UPSCLR
+1440 0a52 de 04              EVAL1 LDX BUFPNT
+1441 0a54 bd 0c e6           EVAL1A JSR SKYCLS GET NEXT CHAR
+1442 0a57 df 04               STX BUFPNT
+1443 0a59 c1 04               CMPB #4 CHECK FOR OPERATORS 
+1444 0a5b 23 02               BLS EVAL1Z
+1445 0a5d c6 05               LDAB #5 SET UP
+1446 0a5f 58                 EVAL1Z ASLB
+1447 0a60 f7 0a 64            STAB OFFREL+1 SET UP BRANCH
+1448 0a63 20 fe              OFFREL BRA *
+1449 0a65 20 2b               BRA EVAL2 ERROR
+1450 0a67 20 1b               BRA EVAL4 TERMINATOR
+1451 0a69 20 38               BRA EVAL8 LETTER
+1452 0a6b 20 2c               BRA EVAL7 NUMBER
+1453 0a6d 20 04               BRA EVAL1C RIGHT PAREN
+1454 0a6f 36                  PSHA SAVE 
+1455 0a70 08                  INX
+1456 0a71 20 ca               BRA EVA0A AGAIN
+1457 0a73 30                 EVAL1C TSX GET SP
+1458 0a74 09                  DEX ADJUST 
+1459 0a75 d6 18               LDAB DIMFLG
+1460 0a77 9c fe               CPX STKTOP CHECK FOR EMPTY 
+1461 0a79 27 06               BEQ EVAL1E
+1462 0a7b 32                  PULA
+1463 0a7c 5f                  CLRB
+1464 0a7d 81 28               CMPA #'( CHECK FOR L PAREN ON STACK
+1465 0a7f 27 f2               BEQ EVAL1C IF SO, OK
+1466 0a81 5d                 EVAL1E TSTB CHECK FOR ALRIGHT
+1467 0a82 27 0e               BEQ EVAL2 IF NOT SET, ERROR
+1468 0a84 4f                 EVAL4 CLRA
+1469 0a85 d6 2c               LDAB STKCNT GET STACK STKCNT
+1470 0a87 5a                  DECB CHECK OP STACK 
+1471 0a88 d1 2d               CMPB AUXCNT
+1472 0a8a 26 06               BNE EVAL2 IF NOT EMPTY, ERROR 
+1473 0a8c 30                  TSX
+1474 0a8d 09                  DEX ALIGN
+1475 0a8e 9c fe               CPX STKTOP CHECK OPERATOR STACK
+1476 0a90 27 04               BEQ EVAL3A IF NOT EMPTY° ERROR
+1477 0a92 86 20              EVAL2 LDAA #$20 SET ERROR NUMBER
+1478 0a94 9e fe              EVAL3 LDS STKTOP GET SP
+1479 0a96 de 04              EVAL3A LDX BUFPNT SET POINTER 
+1480 0a98 39                  RTS
+1481 0a99 bd 0b 59           EVAL7 JSR STAKUP SHIFT OP STACK UP
+1482 0a9c de 04               LDX BUFPNT
+1483 0a9e bd 03 1a            JSR BCDCON GET OPERAND 
+1484 0aa1 20 59               BRA EVAL12
+1485 0aa3 a6 01              EVAL8 LDAA 1,X GET NEXT CHAR
+1486 0aa5 bd 0c ed            JSR CLASS1 GO CLASSIFY
+1487 0aa8 c1 02               CMPB #2 CHECK FOR LETTER
+1488 0aaa 26 28               BNE EVAL9 IF NOT, VARIABLE
+1489 0aac a6 00               LDAA 0,X GET CHAR BACK
+1490 0aae df 22               STX XSAVE SET FOR ENTRY TO FIMDKEY 
+1491 0ab0 ce 01 7b            LDX #FCTTBL
+1492 0ab3 bd 03 85            JSR FNDKE2 GO CHECK FUNCTION
+1493 0ab6 4d                  TSTA CHECK SUCCESS 
+1494 0ab7 27 cb               BEQ EVAL4
+1495 0ab9 7e 07 49            JMP RUNEX4 GO SERVICE
+1496 0abc 86 3f              EVAL86 LDAA #'? GET STGNUM OPERATOR
+1497 0abe 36                 EVAL87 PSHA PUT ON STACK
+1498 0abf de 22               LDX XSAVE
+1499 0ac1 7e 0a 3d            JMP EVA0A
+1500 0ac4 86 40              EVAL85 LDAA #'@ GET ABS OPERATOR
+1501 0ac6 20 f6               BRA EVAL87
+1502 0ac8 bd 03 0f           EVAL88 JSR UPSCLR MOVE STACK UP
+1503 0acb bd 0d 32            JSR RANDOM COMPUTE RANDOM # 
+1504 0ace 97 64               STAA NUMBER+2
+1505 0ad0 de 22              EVAL89 LDX XSAVE RESTORE POINTER
+1506 0ad2 20 28               BRA EVAL12
+1507 0ad4 d6 fe              EVAL9 LDAB STKTOP
+1508 0ad6 37                  PSHB
+1509 0ad7 d6 ff               LDAB STKTOP+1 
+1510 0ad9 37                  PSHB
+1511 0ada d6 2d               LDAB AUXCNT GET COUNTER
+1512 0adc 37                  PSHB SAVE
+1513 0add d6 18               LDAB DIMFLG GET FLAG
+1514 0adf 37                  PSHB SAVE
+1515 0ae0 bd 05 82            JSR FNDLB0 FIND VARIABLE STORAGE
+1516 0ae3 33                  PULB GET FLAG
+1517 0ae4 d7 18               STAB DIMFLG RESTORE
+1518 0ae6 33                  PULB GET COUNTER
+1519 0ae7 d7 2d               STAB AUXCNT RESTORE 
+1520 0ae9 33                  PULB
+1521 0aea d7 ff               STAB STKTOP+1 
+1522 0aec 33                  PULB
+1523 0aed d7 fe               STAB STKTOP
+1524 0aef bd 0b 59            JSR STAKUP
+1525 0af2 de 20               LDX XTEMP
+1526 0af4 bd 0b 4c            JSR GETVAL MOVE VALUE TO NUMBER 
+1527 0af7 20 05               BRA EVA12A
+1528 0af9 de 04              EVA11C LDX BUFPNT RESTORE POINTER 
+1529 0afb 08                  INX
+1530 0afc df 04              EVAL12 STX BUFPNT SAVE POINTER 
+1531 0afe 30                 EVA12A TSX
+1532 0aff 09                  DEX
+1533 0b00 9c fe               CPX STKTOP CHECK OPERATOR STACK
+1534 0b02 27 37               BEQ EVAL10 IF EMPTY, DON'T OPERATE 
+1535 0b04 32                  PULA
+1536 0b05 36                  PSHA PUT BACK
+1537 0b06 81 28               CMPA #'( CHECK FOR LEFT PAREM
+1538 0b08 27 31               BEQ EVAL10 IF SO, DON'T OPERATE
+1539 0b0a bd 0c ed            JSR CLASS1 GO CLASSYFY 
+1540 0b0d 37                  PSHB
+1541 0b0e 54                  LSRB SET UP ID 
+1542 0b0f 96 2c               LDAA STKCNT GET COUNT 
+1543 0b11 4a                  DECA
+1544 0b12 c1 04               CMPB #4 CHECK FOR ABS OR SON
+1545 0b14 27 04               BEQ EVA12C IF SO, GO AHEAD
+1546 0b16 91 2d               CMPA AUXCNT OTHERWISE CHECK FOR 2 OPERANDS
+1547 0b18 27 21               BEQ EVAL10 IF NOT, ABORT
+1548 0b1a 81 09              EVA12C CMPA #9 CHECK OVERFLOW
+1549 0b1c 23 04               BLS EVA12D OK
+1550 0b1e 86 24               LDAA #$24 SET ERROR
+1551 0b20 20 16               BRA EVAL19
+1552 0b22 32                 EVA12D PULA GET CLASSIFICATION
+1553 0b23 33                  PULB GET OPERATOR
+1554 0b24 80 06               SUBA #6 REMOVE BIAS
+1555 0b26 48                  ASLA #2
+1556 0b27 b7 0b 2e            STAA OPOFF+1 SET UP JMP
+1557 0b2a ce 0b 3e            LDX #OPTBL POINT
+1558 0b2d ee 00              OPOFF LDX 0,X
+1559 0b2f ad 00               JSR 0,X GO OPERATE
+1560 0b31 bd 0c c6            JSR ZCHK CHECK RESULT
+1561 0b34 28 c8               BVC EVA12A IF NO OVFL, GO OPERATE AGAIN
+1562 0b36 86 23              EVAL18 LDAA #$23 SET ERROR NUMBER
+1563 0b38 7e 0a 94           EVAL19 JMP EVAL3
+1564 0b3b 7e 0a 52           EVAL10 JMP EVAL1
+1565 0b3e 0b d2              OPTBL FDB ADD
+1566 0b40 0b cc               FDB SUB
+1567 0b42 0c 8a               FDB SIGNUM
+1568 0b44 0b c4               FDB ABSVAL 
+1569 0b46 0b fc               FDB MULT
+1570 0b48 0c 1d               FDB DIVIDE
+1571 0b4a 0c 9c               FDB EXPON
+1572                         *
+1573                         ** GET VALUE
+1574                         * MOVE 3 BYTES POINTED TO BY X TO NUMBER
+1575                         *
+1576 0b4c a6 00              GETVAL LDAA 0,X GET VALUE
+1577 0b4e 97 62               STAA NUMBER STORE
+1578 0b50 a6 01               LDAA 1,X
+1579 0b52 97 63               STAA NUMBER+1 
+1580 0b54 a6 02               LDAA 2,X
+1581 0b56 97 64               STAA NUMBER+2 
+1582 0b58 39                  RTS
+1583                         *
+1584                         *
+1585                         ** STACKUP
+1586                         * ROLL OPERATIONAL STACK UPWARD
+1587                         *
+1588 0b59 ce 00 3b           STAKUP LDX #STKEND POINT TO END
+1589 0b5c e6 03              STAKU2 LDAB 3,X
+1590 0b5e e7 00               STAB 0,X MOVE
+1591 0b60 08                  INX
+1592 0b61 8c 00 62            CPX #NUMBER SEE IF DONE
+1593 0b64 26 f6               BNE STAKU2 
+1594 0b66 7c 00 2c            INC STKCNT 
+1595 0b69 39                  RTS
+1596                         *
+1597                         *
+1598                         ** STACKDOWN
+1599                         * ROLL OPERATIONAL STACK DOWNWARD
+1600                         *
+1601 0b6a ce 00 64           STAKDN LDX #AX-1 POINT TO STORE
+1602 0b6d e6 00              STAKD1 LDAB 0,X
+1603 0b6f e7 03               STAB 3,X 
+1604 0b71 09                  DEX
+1605 0b72 8c 00 3a            CPX #STKEND-1 SEE IF DONE
+1606 0b75 26 f6               BNE STAKD1 
+1607 0b77 7a 00 2c            DEC STKCNT 
+1608 0b7a 39                  RTS
+1609                         *
+1610                         *
+1611                         ** UADD
+1612                         * UNSIGNED ADD OF AX TO NUMBER 
+1613                         *
+1614 0b7b 0c                 UADD CLC ZERO THE CARRY 
+1615 0b7c ce 00 64           UADD1 LDX #NUMBER+2 POINT TO STORE 
+1616 0b7f a6 00              UADD2 LDAA 0,X GET ADDEND
+1617 0b81 a9 03               ADCA 3,X ADD IN AUGEND
+1618 0b83 19                  DAA
+1619 0b84 a7 00               STAA 0,X SAVE 
+1620 0b86 09                  DEX
+1621 0b87 8c 00 61            CPX #NUMBER-1 SEE IF DONE 
+1622 0b8a 26 f3               BNE UADD2
+1623 0b8c 37                 UADD22 PSHB
+1624 0b8d c6 02               LDAB #$02 SET FOR OVFL
+1625 0b8f 85 f0               BITA #$F0
+1626 0b91 26 01               BNE UADD25
+1627 0b93 5f                  CLRB RESET OFVL
+1628 0b94 da 30              UADD25 ORAB OVFLBF
+1629 0b96 d7 30               STAB OVFLBF SET OVFL IF NECESSARY
+1630 0b98 17                  TBA
+1631 0b99 33                  PULB
+1632 0b9a 39                 UADD3 RTS 
+1633                         *
+1634                         *
+1635                         **USUB
+1636                         * UNSIGNED SUBTRACT OF AX FROM NUMBER
+1637                         *
+1638 0b9b 8d 03              USUB BSR TENCOM GO TEN'S COMPLEMENT
+1639 0b9d 0d                  SEC FIX UP
+1640 0b9e 20 dc               BRA UADD1 GO ADD
+1641                         * 
+1642                         *
+1643                         **TENCOM
+1644                         * UNSIGNED TEN'S COMPLEMENT OF AX (ALMOST)
+1645                         *
+1646 0ba0 ce 00 67           TENCOM LDX #AX+2 POINT TO AX
+1647 0ba3 86 99              TENCO1 LDAA #$99
+1648 0ba5 a0 00               SUBA 0,X SUBTRACT FROM 99
+1649 0ba7 a7 00               STAA 0,X SAVE
+1650 0ba9 09                  DEX
+1651 0baa 8c 00 64            CPX #AX-1
+1652 0bad 26 f4               BNE TENCO1
+1653 0baf 84 0f               ANDA #$0F RESET SIGN
+1654 0bb1 a7 01               STAA 1,X STORE
+1655 0bb3 39                  RTS
+1656                         * 
+1657                         *
+1658                         ** SET SIN
+1659                         * CALCULATE RESULT SIGN 
+1660                         *
+1661 0bb4 7f 00 30           SETSIN CLR OVFLBF CLEAR OVFL INDICATOR
+1662 0bb7 96 65              SETSI0 LDAA AX GET SIGN
+1663 0bb9 16                  TAB SAVE
+1664 0bba c4 0f               ANDB #$0F RESET SIGN
+1665 0bbc d7 65               STAB AX PUT BACK
+1666 0bbe 97 2f               STAA AXSIGN SAVE SIGN
+1667 0bc0 98 62               EORA NUMBER FORM NEW SIGN
+1668 0bc2 97 2e               STAA SIGN SAVE
+1669 0bc4 d6 62              ABSVAL LDAB NUMBER GET MS BYTE
+1670 0bc6 c4 0f               ANDB #$0F RESET SIGN
+1671 0bc8 d7 62               STAB NUMBER PUT BACK
+1672 0bca 4d                  TSTA TEST NEW SIGN
+1673 0bcb 39                  RTS
+1674                         * 
+1675                         *
+1676                         **
+1677                         * SUBTRACT AX FROM NUMBER
+1678                         *
+1679 0bcc 96 62              SUB LDAA NUMBER GET MS BYTE
+1680 0bce 88 f0               EORA #$F0 CHANGE SIGN
+1681 0bd0 97 62               STAA NUMBER PUT BACK
+1682                         * GO INTO ADD 
+1683                         *
+1684                         *
+1685                         * ADD
+1686                         * ADDAX TO NUMBER
+1687                         *
+1688 0bd2 8d 58              ADD BSR RELAY
+1689 0bd4 8d de               BSR SETSIN GO CALCULATE SIGN
+1690 0bd6 2a 0a               BPL ADD0 USE EITHER SIGN
+1691 0bd8 8d c1               BSR USUB OTHERWISE SUBTRACT
+1692 0bda 06                  TAP SET CCR
+1693 0bdb 28 09               BVC ADD1 CHECK OVERFLOW
+1694 0bdd 73 00 2f            COM AXSIGN CHANGE FOR AX SMALLER
+1695 0be0 20 0b               BRA ADD15
+1696 0be2 8d 97              ADD0 BSR UADD GO ADD
+1697 0be4 20 0a               BRA ADD2 GO FIX SIGN
+1698 0be6 8d 44              ADD1 BSR RELAY COPY NUMBER TO AX
+1699 0be8 bd 03 0f            JSR UPSCLR RESTORE
+1700 0beb 8d ae               BSR USUB GO NEGATE
+1701 0bed 7f 00 30           ADD15 CLR OVFLBF
+1702 0bf0 96 2f              ADD2 LDAA AXSIGN GET OLD SIGN
+1703                         * 
+1704                         *
+1705                         ** FIXSIN
+1706                         * SET THE SIGN ON THE RESULT 
+1707                         *
+1708 0bf2 84 f0              FIXSIN ANDA #$F0 MASK
+1709 0bf4 c6 0f               LDAB #$0F SET MASK
+1710 0bf6 d4 62               ANDB NUMBER RESET SIGN
+1711 0bf8 1b                  ABA TACK ON SIGN
+1712 0bf9 97 62               STAA NUMBER PUT BACK
+1713 0bfb 39                 FIX2 RTS
+1714                         *
+1715                         *
+1716                         ** MULT
+1717                         * MULTIPLY AC BY AX 
+1718                         *
+1719 0bfc 8d 2e              MULT BSR RELAY MOVE STACK
+1720 0bfe 8d b4               BSR SETSIN GO CALC. SIGNS
+1721 0c00 bd 03 0f           MULT0 JSR UPSCLR MOVE STACK UP
+1722 0c03 c6 05               LDAB #5 SET COUNTER
+1723 0c05 96 5f              MULT1 LDAA AC GET MS BYTE OF AC
+1724 0c07 27 08               BEQ MULT3 IF ZERO , LOOP
+1725 0c09 bd 0b 7b           MULT2 JSR UADD ADD IN AX 
+1726 0c0c 7a 00 5f            DEC AC ONCE DONE 
+1727 0c0f 26 f8               BNE MULT2
+1728 0c11 5a                 MULT3 DECB ONCE DONE
+1729 0c12 27 3d               BEQ MULT4 CHECK IF ALL DONE
+1730 0c14 8d 4a               BSR ACLEFT SHIFT AC LEFT
+1731 0c16 96 62               LDAA NUMBER
+1732 0c18 bd 0b 8c            JSR UADD22
+1733 0c1b 20 e8               BRA MULT1
+1734                         * 
+1735                         * 
+1736                         ** DIVIDE 
+1737                         * DIVIDE AC-NUMBER BY AX 
+1738                         *
+1739 0c1d 8d 0d              DIVIDE BSR RELAY
+1740 0c1f ce 00 65            LDX #AX
+1741 0c22 bd 0c c9            JSR ZCHK1 GO CHECK IF AX=O
+1742 0c25 26 08               BNE DIVID1 IF NOT, OK
+1743 0c27 86 22              DIVID0 LDAA #$22 SET ERROR
+1744 0c29 7e 0a 94            JMP EVAL3
+1745 0c2c 7e 0b 6a           RELAY JMP STAKDN RELAY TO STACK DOWN
+1746 0c2f bd 0b b4           DIVID1 JSR SETSIN CALC, SIGNS
+1747 0c32 bd 0b 59            JSR STAKUP PUSH BACK
+1748 0c35 8d 29               BSR ACLEFT SHIFT DOWN
+1749 0c37 6f 02               CLR 2,X
+1750 0c39 6f 03               CLR 3,X ZERO OUT NUMBER
+1751 0c3b c6 05               LDAB #5 SET LOOP COUNT
+1752 0c3d 8d 21              DIVID2 BSR ACLEFT MOVE AC DOWN
+1753 0c3f bd 0b a0           DIVI2A JSR TENCOM TAKE 10'S COMP
+1754 0c42 8d 2e              DIVID3 BSR DADD GO SPECIAL ADD
+1755 0c44 85 f0               BITA #$F0 CHECK FOR OVERFLOW
+1756 0c46 26 13               BNE DIVID4
+1757 0c48 bd 0b a0            JSR TENCOM IF SO, RESTORE AX
+1758 0c4b 0c                  CLC
+1759 0c4c 8d 25               BSR DADD1 ADDBACK IN
+1760 0c4e 5a                  DECB ONE PASS MADE
+1761 0c4f 26 ec               BNE DIVID2
+1762 0c51 96 2e              MULT4 LDAA SIGN GET THE SIGN
+1763 0c53 8d 9d               BSR FIXSIN GO FIX UP THE SIGN
+1764 0c55 ce 00 5e            LDX #AC-1 POINT TO AC
+1765 0c58 7e 0b 6d            JMP STAKD1 MOVE STACK BACK
+1766 0c5b 7c 00 64           DIVID4 INC NUMBER+2 ADD ONE IN
+1767 0c5e 20 e2               BRA DIVID3 GO DO AGAIN
+1768                         * 
+1769                         * 
+1770                         ** ACLEFT
+1771                         * SHIFT AC-NUMBER LEFT 4 BITS
+1772                         *
+1773 0c60 86 04              ACLEFT LDAA #4 SET FOR 4 BITS
+1774 0c62 ce 00 64           ACLEF1 LDX #AX-1 POINT X 
+1775 0c65 0c                  CLC
+1776 0c66 69 00              ACLEF2 ROL 0,X ROTATE
+1777 0c68 09                  DEX
+1778 0c69 8c 00 5e            CPX #AC-1 CHECK IF DONE 
+1779 0c6c 26 f8               BNE ACLEF2
+1780 0c6e 4a                  DECA CHECK FOR DONE 
+1781 0c6f 26 f1               BNE ACLEF1
+1782 0c71 39                  RTS
+1783                         *
+1784                         *
+1785                         ** DADD
+1786                         * ADDAX TO A C
+1787                         *
+1788 0c72 0d                 DADD SEC
+1789 0c73 ce 00 61           DADD1 LDX #AC+2
+1790 0c76 96 5f               LDAA AC GET MS BYTE
+1791 0c78 84 0f               ANDA #$0F RESET SIGN
+1792 0c7a 97 5f               STAA AC STORE BACK
+1793 0c7c a6 00              DADD2 LDAA 0,X GET ADDEND
+1794 0c7e a9 06               ADCA 6,X ADD IN
+1795 0c80 19                  DAA
+1796 0c81 a7 00               STAA 0,X SAVE 
+1797 0c83 09                  DEX
+1798 0c84 8c 00 5e            CPX #AC-1 SEE IF DONE
+1799 0c87 26 f3               BNE DADD2
+1800 0c89 39                  RTS
+1801                         *
+1802                         ** SIGNUM
+1803                         * CALCULATE SIGNUM FUNCTION
+1804                         *
+1805 0c8a 8d 3a              SIGNUM BSR ZCHK GO CHECK = O
+1806 0c8c 27 0b               BEQ SIGNU2 IF SOY RESULT =0
+1807 0c8e d6 62               LDAB NUMBER OTHERWISE GET SIGN
+1808 0c90 8d 07              SIGNU1 BSR SIGNU2 GO CLEAR
+1809 0c92 7c 00 64            INC NUMBER+2 MAKE = I
+1810 0c95 17                  TBA SET FOR FIXSIN
+1811 0c96 7e 0b f2            JMP FIXSIN GO SET THE SIGN
+1812 0c99 7e 03 12           SIGNU2 JMP CLRNUM 
+1813                         *
+1814                         *
+1815                         ** EXPON
+1816                         * CALCULATE EXPONENTIATION
+1817                         * ONLY POSITIVE EXPONENTS UP TO 99 ALLOWED
+1818                         *
+1819 0c9c 8d 8e              EXPON BSR RELAY MOVE OPERANDS DOWN
+1820 0c9e 5f                  CLRB
+1821 0c9f d7 30               STAB OVFLBF CLEAR OVER FLOW
+1822 0ca1 96 67               LDAA AX+2 GET EXPONENT
+1823 0ca3 27 eb               BEQ SIGNU1 IF O, GO MAKE RESULT +1
+1824 0ca5 bd 0b 59            JSR STAKUP GET TWO COPIES
+1825 0ca8 8d 82               BSR RELAY MOVE DOWN
+1826 0caa 8b 99              EXPON1 ADDA #$99 DECREMENT
+1827 0cac 19                  DAA
+1828 0cad 27 16               BEQ CMPX2 WHEN 0 ALL DONE
+1829 0caf 36                  PSHA SAVE EXP
+1830 0cb0 bd 0b b7            JSR SETSI0 GO FIX SIGNS
+1831 0cb3 bd 0c 00            JSR MULT0 GO MULTIPLY
+1832 0cb6 32                  PULA GET EXPONENT
+1833 0cb7 20 f1               BRA EXPON1 LOOP
+1834                         * 
+1835                         *
+1836                         ** CMPX
+1837                         * FULL COMPARE ON X
+1838                         * COMPARES X WITH CONTENTS OF CPX1
+1839                         *
+1840 0cb9 df 39              CMPX STX CPX2 SAVE
+1841 0cbb 96 39              CMPX1 LDAA CPX2 GET MS BYTE
+1842 0cbd 91 37               CMPA CPX1 COMPARE
+1843 0cbf 26 04               BNE CMPX2 IF NOT EQUAL, DONE
+1844 0cc1 d6 3a               LDAB CPX2+1 GET LS BYTE
+1845 0cc3 d1 38               CMPB CPX1+1 COMPARE
+1846 0cc5 39                 CMPX2 RTS DOME
+1847                         * 
+1848                         * 
+1849                         ** ZCHK
+1850                         * CHECK OPERAND FOR EQUAL TO 0 
+1851                         *
+1852 0cc6 ce 00 62           ZCHK LDX #NUMBER
+1853 0cc9 5f                 ZCHK1 CLRB
+1854 0cca 6d 02               TST 2,X
+1855 0ccc 26 0e               BNE ZCHK2
+1856 0cce 6d 01               TST 1,X
+1857 0cd0 26 0a               BNE ZCHK2
+1858 0cd2 a6 00               LDAA 0,X GET MS BYTE 
+1859 0cd4 84 0f               ANDA #$0F
+1860 0cd6 26 04               BNE ZCHK2 CHECK FOR 0
+1861 0cd8 a7 00               STAA 0,X RESET SIGN BITS 
+1862 0cda c6 04               LDAB #4
+1863 0cdc a6 00              ZCHK2 LDAA 0,X GET MS BYTE
+1864 0cde 46                  RORA MOVE A SIGN BIT TO N
+1865 0cdf 84 08               ANDA #8 MASK N BIT
+1866 0ce1 1b                  ABA MERGE Z AND N
+1867 0ce2 9a 30               ORAA OVFLBF ADD IN V
+1868 0ce4 06                  TAP SET CCR 
+1869 0ce5 39                  RTS
+1870                         *
+1871                         *
+1872                         **
+1873 0ce6 bd 03 68           SKYCLS JSR SKIPSP
+1874 0ce9 20 02               BRA CLASS1
+1875                         * 
+1876                         * 
+1877                         **CLASS
+1878                         *CLASSIFY A CHARACTER IN THE A ACCUMULATOR
+1879                         *CLASSIFICATION RETURNED IN B
+1880                         *  0 ERROR
+1881                         *  1 TERMINATOR
+1882                         *  2 LETTER
+1883                         *  3 NUMBER
+1884                         *  4 )
+1885                         *  5 (
+1886                         *  6 +
+1887                         *  7 -
+1888                         *  8 SGN
+1889                         *  9 ABS
+1890                         * 10 *
+1891                         * 11 /
+1892                         * 12 ~
+1893 0ceb a6 00              CLASS LDAA 0,X GET CHAR
+1894 0ced c6 01              CLASS1 LDAB #1 SET UP
+1895 0cef 81 0d               CMPA #$D CHECK FOR CR 
+1896 0cf1 27 17               BEQ CLAS25
+1897 0cf3 5a                  DECB
+1898 0cf4 36                  PSHA SAVE CHAR
+1899 0cf5 80 28              CLAS2B SUBA #'( REMOVE BIAS
+1900 0cf7 2b 10               BMI CLASS2 CHECK ILLEGAL
+1901 0cf9 81 18               CMPA #'@-'( CHECK LIMIT
+1902 0cfb 23 0e               BLS CLASS3 NOT LETTER
+1903 0cfd 81 32               CMPA #'Z-'( CHECK FOR LETTER 
+1904 0cff 23 06               BLS CLAS1B
+1905 0d01 81 36               CMPA #'^-'( CHECK FOR ILLEGAL 
+1906 0d03 26 04               BNE CLASS2
+1907 0d05 c6 0a               LDAB #10 FIX UP
+1908 0d07 cb 02              CLAS1B ADDB #02
+1909 0d09 32                 CLASS2 PULA RESTORE CHARACTER
+1910 0d0a 39                 CLAS25 RTS DONE
+1911 0d0b df 24              CLASS3 STX XSAVE2 SAVE X REG
+1912 0d0d ce 0d 19            LDX #CLSTBL POINT TO TABLE 
+1913 0d10 b7 0d 14            STAA CLSOFF+1 SET BIAS
+1914 0d13 e6 00              CLSOFF LDAB 0,X GET CLASSIFICATION
+1915 0d15 de 24               LDX XSAVE2 RESTORE X REG, 
+1916 0d17 20 f0               BRA CLASS2
+1917 0d19 05 04 0a 06 01 07  CLSTBL FCB 5,4,10,6,1,7,0,11,3,3,3,3
+     00 0b 03 03 03 03
+1918 0d25 03 03 03 03 03 03   FCB 3,3,3,3,3,3,1,1,1,1,1,8,9
+     01 01 01 01 01 08
+     09
+1919                         *
+1920                         *
+1921                         * RANDOM GENERATOR
+1922                         *
+1923 0d32 c6 08              RANDOM LDAB #8 SET COUNTER
+1924 0d34 ce 00 00            LDX #RNDM
+1925 0d37 a6 03              RPT LDAA 3,X GET M.S. BYTE OF RANDOM NO.
+1926 0d39 48                  ASLA SHIFT IT LEFT THREE:
+1927 0d3a 48                  ASLA TIMES TO GET BIT 28
+1928 0d3b 48                  ASLA IN LINE WITH BIT 31
+1929 0d3c a8 03               EORA 3,X XOR A WITH RANDOM NO
+1930 0d3e 48                  ASLA PUT BIT 28.XOR31 IN
+1931 0d3f 48                  ASLA CARRY BY SHIFTING LEFT
+1932 0d40 69 00               ROL 0,X ROTATE ALL FOUR BYTES OF
+1933 0d42 69 01               ROL 1,X THE RANDOM NO, ROTATING
+1934 0d44 69 02               ROL 2,X THE CARRY INTO THE LSB
+1935 0d46 69 03               ROL 3,X THE MSB IS LOST
+1936 0d48 5a                  DECB DECREMENT THE COUNTER
+1937 0d49 26 ec               BNE RPT IF ITS NOT O, GO REPEAT
+1938 0d4b a6 00               LDAA 0,X PUT RANDOM # IN A
+1939 0d4d 81 9f               CMPA #$9F CHECK IN RANGE
+1940 0d4f 22 e1               BHI RANDOM IN NOT GET ANOTHER
+1941 0d51 8b 00               ADDA #0 SET HALF CARRY 
+1942 0d53 19                  DAA
+1943 0d54 39                  RTS
+1944 0d55                    ENDSTR RMB 2
+1945 0d57                    STORSP EQU *
+1946                         
+1947 1f00                     ORG EXTERN
+1948 1f00 39                  RTS
+1949                          END
