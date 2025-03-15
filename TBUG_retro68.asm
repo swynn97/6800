@@ -12,13 +12,12 @@
 ;	2.3	3/15/25	- Moved TBUG specific scratchpad back to A080H since the prior release conflicted
 ;			  with the stack for loaded program such as BASIC (duh). Also, hooked up LCD dislay
 ;			  code.			  			
+;	2.4	3/15/25 - Added code to fix RUBIG and WAIT issues.
 ;
 ; Note: Spare space labbeled with 'SPARE SPACE'
 ;
 ; TEMP Notes area:
 ;
-; - Fix WAIT
-; - Fix RUBIG esc character issues (?)
 ; - Tagged all the NOPs as SPARE SPACE
 ; - Removed all PIA B references for now - commented out PIABCN, PIABPR, XIABCN, XIABPR
 ; 
@@ -481,21 +480,28 @@ NULOUT  jsr     OUTCH           ;level to settle
         decb
         bne     NULOUT
         rts
-INIT 	;staa 	PIABCN 		;continuation of initializatio - No longer use PIAB
-       	ldaa 	#$15    	;init acia-one stop bit and
+INIT 	ldaa 	#$15    	;init acia-one stop bit and
      	staa 	ACIACN  	;8 bits of data no parity
-     	clr   	RUBIG   	;rubout chars ignored.
-	jsr	piab_init	;Initialize the PIA fot the LCD display
+     	;clr   	RUBIG   	;rubout chars ignored.
+;
+	lda     #$01            ;set the WAIT bit to always return
+        staa    RUBIG           ;don't ignore rubout/7F (orig TBUG clears this)
+        staa    WAIT            ;Initialize the WAIT variable (used in LOAD) - fixes bug in orig TBUG   
+;
+	jsr	piab_init	;Initialize the PIA for the LCD display
 	jsr	lcd_init	;Initialize the LCD display
      	ldx   	#TBSTR  	;print 'tbug'
      	jsr   	PDATA
-        ;rts
 ;
 	rts
 	nop			;SPARE SPACE
 	nop			;SPARE SPACE
-;
-TBSTR 	db    	CR,LF,LF,0,0,"TBUG",EOT,0
+	nop			;SPARE SPACE
+	nop			;SPARE SPACE
+	nop			;SPARE SPACE
+	nop			;SPARE SPACE
+	nop			;SPARE SPACE
+	nop			;SPARE SPACE
 ;
 S9OUT 	ldx  	#S9STR  	;-output 's9'
      	jsr   	PDATA
@@ -669,6 +675,8 @@ TABLE 	db   	'G'     	;-jump table for command
 	db	'Z'
 	dw	$c000		;Mod to replicate SWTBUG ROM command
 	db	0
+;
+TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
 ;
 ;Old vectors went here - now moved to end of larger ROM
 ;
