@@ -1,0 +1,19 @@
+This is an attempt at a romable version of TST 4K MicroBasic that lives at C000H
+See the code for comments marked with 'SWYNN ROM MODS' for the changes.
+
+This doesn't work when run in ROM becuase of self-modifying code (from what I can tell).
+
+Diff before and after running some BASIC code:
+
+23c23
+< S113C160C16C8D269C22270709A600A70020F5098B
+---
+> S113C160C16C8D269C22270709A600A70E20F5097D
+151c151
+< S113C960F7C96420FE202B201B2038202C200436FD
+---
+> S113C960F7C9642002202B201B2038202C200436F9
+194c194
+< S113CC10B7CC14E600DE2420F005040A0601070060
+---
+> S113CC10B7CC14E60CDE2420F005040A0601070054
