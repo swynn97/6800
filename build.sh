@@ -1,7 +1,10 @@
 #!/bin/bash          
 
-# build script for Retro68 ROM
-
+# Bbuild script for Retro68 ROM that includes a image of SWTPC 8K BASIC.
+# BASIC and the routine to copy this into RAM are concatenated onto the TBUG hex file.
+# This is done this way since there is no such thing as a linker here, and I don't have i
+# the source for SWTPC BASIC so I can't build this as part of TBUG.
+#
 # Binary image names
 SWTPC_BASIC=SWTPC_8K_BASIC_v22_7768.S19
 
@@ -27,7 +30,7 @@ sed -i '$ d' romcopy.hex
 # SWTPC BASIC
 #************
 
-# copy SWTPC BASIC binary image from whammy repo
+# copy SWTPC BASIC binary image from 8KBasic directory
 cp ./8KBasic/$SWTPC_BASIC .
 
 #strip off s9 from end of BASIC file, because srec_cat doesn't like it
