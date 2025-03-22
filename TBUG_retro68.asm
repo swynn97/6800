@@ -721,7 +721,7 @@ BASIC_START		equ	$f3a3
 BASIC_END		equ	$fff7
 DEST_START              equ     $0100
 BASIC_EXEC_START        equ     $0100
-basic_copymsg   db      CR,LF,"Loading BASIC... ",EOT
+basic_copymsg   db      CR,LF,"Loading BASIC...",EOT
 EXTERN			equ	$1f00		;TSC BASIC writes 'rts' to this location for external subroutines
 ;
 ; Copy BASIC image to ROM, then run it
@@ -756,7 +756,6 @@ memcopy         ldx     BEGA
 done            rts
 
 	endif
-;
 ;
 ;###########################################
 ;

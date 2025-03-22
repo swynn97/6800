@@ -735,7 +735,7 @@ e3f5 : e104                   	dw   	SERFORM
                         ;
 e3f7 : 5a               	db	'Z'
                         	if BASIC
-e3f8 : e617             	dw	load_basic	;load BASIC from ROM and launch it	
+e3f8 : e616             	dw	load_basic	;load BASIC from ROM and launch it	
                         	else
                         	dw	$c000		;Mod to replicate SWTBUG ROM command
                         	endif
@@ -1208,42 +1208,42 @@ f3a3 =                  BASIC_START		equ	$f3a3
 fff7 =                  BASIC_END		equ	$fff7
 0100 =                  DEST_START              equ     $0100
 0100 =                  BASIC_EXEC_START        equ     $0100
-e603 : 0d0a4c6f616469.. basic_copymsg   db      CR,LF,"Loading BASIC... ",EOT
+e603 : 0d0a4c6f616469.. basic_copymsg   db      CR,LF,"Loading BASIC...",EOT
 1f00 =                  EXTERN			equ	$1f00		;TSC BASIC writes 'rts' to this lo
                         ;
                         ; Copy BASIC image to ROM, then run it
                         ;
-e617 : cee603           load_basic      ldx     #basic_copymsg		;display copy 
-e61a : bde07e                           jsr     PDATA
-e61d : ce0100                           ldx     #DEST_START             ;load 
-e620 : ffa00f                           stx     TW
-e623 : cef3a3                           ldx     #BASIC_START        	;load sou
-e626 : ffa002                           stx     BEGA
-e629 : cefff7                           ldx     #BASIC_END          	;load end
-e62c : ffa004                           stx     ENDA
-e62f : 8d0a                             bsr     memcopy                 ;copy 
-e631 : ce1f00           		ldx	#EXTERN			;write 'rts' instruction to the EXTERN
-e634 : 8639             		ldaa	#$39			;look at the TSC MicroBasic source code.
-e636 : a700             		staa	0,x
-e638 : 7e0100                           jmp     BASIC_EXEC_START        ;jump 
+e616 : cee603           load_basic      ldx     #basic_copymsg		;display copy 
+e619 : bde07e                           jsr     PDATA
+e61c : ce0100                           ldx     #DEST_START             ;load 
+e61f : ffa00f                           stx     TW
+e622 : cef3a3                           ldx     #BASIC_START        	;load sou
+e625 : ffa002                           stx     BEGA
+e628 : cefff7                           ldx     #BASIC_END          	;load end
+e62b : ffa004                           stx     ENDA
+e62e : 8d0a                             bsr     memcopy                 ;copy 
+e630 : ce1f00           		ldx	#EXTERN			;write 'rts' instruction to the EXTERN
+e633 : 8639             		ldaa	#$39			;look at the TSC MicroBasic source code.
+e635 : a700             		staa	0,x
+e637 : 7e0100                           jmp     BASIC_EXEC_START        ;jump 
                         ;
                         ; memcopy routine. Destination start is in TW, source 
                         ;
-e63b : fea002           memcopy         ldx     BEGA
-e63e : a600                             ldaa    0,x                     ;load 
-e640 : 08                               inx
-e641 : bca004                           cpx     ENDA
+e63a : fea002           memcopy         ldx     BEGA
+e63d : a600                             ldaa    0,x                     ;load 
+e63f : 08                               inx
+e640 : bca004                           cpx     ENDA
 AS02 Assembler for M6802 [1.42].                                     Page   20
 --------------------------------- lcd_driver ---------------------------------
 
-e644 : 270e                             beq     done
-e646 : ffa002                           stx     BEGA
-e649 : fea00f                           ldx     TW                      ;load 
-e64c : a700                             staa    0,x                     ;copy 
-e64e : 08                               inx
-e64f : ffa00f                           stx     TW
-e652 : 20e7                             bra     memcopy
-e654 : 39               done            rts
+e643 : 270e                             beq     done
+e645 : ffa002                           stx     BEGA
+e648 : fea00f                           ldx     TW                      ;load 
+e64b : a700                             staa    0,x                     ;copy 
+e64d : 08                               inx
+e64e : ffa00f                           stx     TW
+e651 : 20e7                             bra     memcopy
+e653 : 39               done            rts
                         
                         	endif
                         ;
