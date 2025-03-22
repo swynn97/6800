@@ -269,7 +269,8 @@ lcd_init	ldx	#1250		;wait 100ms0
 		jsr 	lcd_cmd
 		ldab	#9		;wait 50us
 		bsr	sdelay
-		ldaa	#$0e		;display on, cursor on, etc.
+		ldaa	#$0e		;display on, cursor on
+		;ldaa	#$0f		;display on, cursor on, cursor blink
 		jsr 	lcd_cmd
 		ldab	#9		;wait 50us
 		bsr	sdelay	

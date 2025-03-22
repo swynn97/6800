@@ -1,7 +1,7 @@
 AS02 Assembler for M6802 [1.42].                                     Page    1
 ------------------------------ TBUG_retro68.asm ------------------------------
 
-1123 lines read, no errors in pass 1.
+1195 lines read, no errors in pass 1.
                         		title "tbug"
                         ;
                         ; Complete source to Newbear TBUG, hand-typed in
@@ -17,6 +17,7 @@ AS02 Assembler for M6802 [1.42].                                     Page    1
                         ;			  with the stack for loaded program such as BASIC 
                         ;			  code.			  			
                         ;	2.4	3/15/25 - Added code to fix RUBIG and WAIT issue
+                        ;	2.5	3/21/25	- Added back 'U' command, added TSC Micr
                         ;
                         ; Note: Spare space labbeled with 'SPARE SPACE'
                         ;
@@ -39,6 +40,12 @@ AS02 Assembler for M6802 [1.42].                                     Page    1
                                         endif
                                         endm
                         ;
+0000 =                  false           equ     0
+ffff =                  true            equ     ~false
+                        
+                        ; Options
+                        ;
+ffff =                  BASIC	equ	true	;include TSC MicroBasic image and loade
                         ;
                                         bss
 a000 =                                  org     $A000
@@ -56,6 +63,9 @@ a000 =                                  org     $A000
 a000 =                  IRV             ds      2       ;IRQ POINTER
 a002 =                  BEGA            ds      2       ;BEGINNING ADDR PNCH
 a004 =                  ENDA            ds      2       ;ENDING ADDR PNCH
+AS02 Assembler for M6802 [1.42].                                     Page    2
+------------------------------------ tbug ------------------------------------
+
 a006 =                  NMV             ds      2       ;NMI INTERRUPT VECTOR
 a008 =                  SP              ds      1       ;S HIGH
 a009 =                                  ds      1       ;S LOW
@@ -63,9 +73,6 @@ a00a =                  CKSM            ds      1       ;CHECKSUM
 a00b =                  BYTECT          ds      1       ;BYTECT AND MCONT TEMP
 a00c =                  XHI             ds      1       ;XREG HIGH
 a00d =                  XLOW            ds      1       ;XREG LOW
-AS02 Assembler for M6802 [1.42].                                     Page    2
------------------------------------- tbug ------------------------------------
-
 a00e =                  TEMP            ds      1       ;TEMPORARY STORAGE
 a00f =                  TW              ds      2       ;TEMPORARY STORAGE
 a011 =                  MCONT           ds      1       ;Frame count
@@ -121,6 +128,9 @@ a0b3 =                  lcd_charx      ds      3                       ;temp s
                         ; only be done today.
                         ;
 8000 =                  IOBASE          equ     $8000
+AS02 Assembler for M6802 [1.42].                                     Page    3
+------------------------------------ tbug ------------------------------------
+
 0004 =                  IOBYTES         equ     4
                         ;
                         ; Slot used by console ACIA
@@ -128,9 +138,6 @@ a0b3 =                  lcd_charx      ds      3                       ;temp s
                         ;
                         ; KB/Paper tape slot PIA used by TBUG
 0004 =                  KBSLOT          equ     4
-AS02 Assembler for M6802 [1.42].                                     Page    3
------------------------------------- tbug ------------------------------------
-
                         ;
                         ;***************************************************
                         ;
@@ -186,6 +193,9 @@ e011 : 2031                   	bra    	C1
 e013 : 8d63             LOAD3 	bsr    	INCHBR   		;get char look for 's1' (sta
 e015 : 8153                   	cmpa 	#'S'    	;of block) or 's9' end of file
 e017 : 26fa                   	bne    	LOAD3  		;not 's so look again
+AS02 Assembler for M6802 [1.42].                                     Page    4
+------------------------------------ tbug ------------------------------------
+
 e019 : 8d5d                   	bsr    	INCHBR
 e01b : 8139                   	cmpa 	#'9'
 e01d : 27ed                   	beq    	QWAIT  		;branch if end of file (s9)
@@ -193,9 +203,6 @@ e01f : 8131                   	cmpa 	#'1'
 e021 : 26f0                   	bne    	LOAD3  		;if 's1' or 's9' not found
 e023 : 7fa00a               	clr    	CKSM   		;'s1' found begin load
 e026 : 8d2d                   	bsr    	BYTE   		;get byte count
-AS02 Assembler for M6802 [1.42].                                     Page    4
------------------------------------- tbug ------------------------------------
-
 e028 : 8002                   	suba 	#02
 e02a : b7a00b               	staa 	BYTECT
 e02d : 8d18                   	bsr    	BADDR  		;get address of block
@@ -251,6 +258,9 @@ e06a : 44                       lsra
                         
                         ;
 e06b : 840f             OUTHR 	anda 	#$0f
+AS02 Assembler for M6802 [1.42].                                     Page    5
+------------------------------------ tbug ------------------------------------
+
 e06d : 8b30                   	adda 	#$30   		;convert hex to ascii
 e06f : 8139                   	cmpa 	#$39
 e071 : 2302                   	bls  	OUTCHBR
@@ -258,9 +268,6 @@ e073 : 8b07                   	adda 	#07
 e075 : 7ee1d1           OUTCHBR	jmp 	OUTCH		;modified from original TBUG, OUTE
 e078 : 7ee1ac           INCHBR 	jmp  	INCH		;..and also for INCH, so INPOLL->I
 e07b : 8df8             PDT2 	bsr    	OUTCHBR
-AS02 Assembler for M6802 [1.42].                                     Page    5
------------------------------------- tbug ------------------------------------
-
 e07d : 08                       inx
                         ;
                         ; Output text string pointed to by x
@@ -316,6 +323,9 @@ e0c6 : 20a3                   	bra    	OUTHR   	;output right hex char return.
                         	VERIFY	$e0c8
                         
                         ;
+AS02 Assembler for M6802 [1.42].                                     Page    6
+------------------------------------ tbug ------------------------------------
+
 e0c8 : 8df5             OUT4HS 	bsr   	OUT2H   	;output 4 hex + space
                         ;
                         	VERIFY	$e0ca
@@ -323,9 +333,6 @@ e0c8 : 8df5             OUT4HS 	bsr   	OUT2H   	;output 4 hex + space
                         ;
 e0ca : 8df3             OUT2HS 	bsr   	OUT2H   	;output 2 hex + space
                         ;
-AS02 Assembler for M6802 [1.42].                                     Page    6
------------------------------------- tbug ------------------------------------
-
                         	VERIFY	$e0cc
                         
                         ;
@@ -381,6 +388,9 @@ e11d : 6a06             NDEC  	dec    	6,x
 e11f : fea008           PRINT 	ldx    	SP      	;print contents of stack
 e122 : 08                       inx
 e123 : 8da5                     bsr    	OUT2HS
+AS02 Assembler for M6802 [1.42].                                     Page    7
+------------------------------------ tbug ------------------------------------
+
 e125 : 8da3                     bsr    	OUT2HS
 e127 : 8da1                     bsr    	OUT2HS
 e129 : 8d9d                     bsr    	OUT4HS
@@ -388,9 +398,6 @@ e12b : 8d9b                     bsr    	OUT4HS
 e12d : cea008                 	ldx    	#SP
 e130 : 8d96                     bsr    	OUT4HS
 e132 : 20af             C2      bra    	CONTRL
-AS02 Assembler for M6802 [1.42].                                     Page    7
------------------------------------- tbug ------------------------------------
-
                         ;
 e134 : 0d0a0000000053.. MTAPE 	db     CR,LF,0,0,0,0,"S1",EOT
                         ;
@@ -446,6 +453,9 @@ e1a3 : 6e00                   	jmp   	0,x    		;and jump to it
 e1a5 : ffa012           SAVX	stx   	XTEMP   	;store x
                         ;
 e1a8 : ce8000               	ldx   	#IOBASE  	;point x at to IO base
+AS02 Assembler for M6802 [1.42].                                     Page    8
+------------------------------------ tbug ------------------------------------
+
 e1ab : 39                       rts
                         ;
                         	VERIFY	$e1ac
@@ -453,9 +463,6 @@ e1ab : 39                       rts
                         ;
 e1ac : 867f             INCH	ldaa 	#$7f    	;input one char from port into, ch
                         ;
-AS02 Assembler for M6802 [1.42].                                     Page    8
------------------------------------- tbug ------------------------------------
-
                         	VERIFY	$e1ae
                         
                         ;
@@ -503,7 +510,7 @@ e1df : 54                       lsrb
 e1e0 : 54                       lsrb
 e1e1 : 24f9             F9      bcc   	NOTRDY 		;no
 e1e3 : b78001                	staa 	ACIADT 		;pass char to acia for transmit
-e1e6 : bde402           	jsr	lcd_outch	;Call lcd_outch to display on LCD displ
+e1e6 : bde405           	jsr	lcd_outch	;Call lcd_outch to display on LCD displ
 e1e9 : 33               	pulb
 e1ea : fea012           	ldx   	XTEMP   	;restore x
 e1ed : 39                       rts
@@ -511,6 +518,9 @@ e1ee : 7ee047           BADLK 	jmp 	BADDR
                         ;
                         ; SPARE SPACE
                         ;
+AS02 Assembler for M6802 [1.42].                                     Page    9
+------------------------------------ tbug ------------------------------------
+
 e299 =                  		org	$e299
                         ;
 e299 : c620             AUTO    ldab    #$20            ;output 32 nulls
@@ -518,9 +528,6 @@ e29b : 4f                       clra                    ;to allow auto recordi
 e29c : bde1d1           NULOUT  jsr     OUTCH           ;level to settle
 e29f : 5a                       decb
 e2a0 : 26fa                     bne     NULOUT
-AS02 Assembler for M6802 [1.42].                                     Page    9
------------------------------------- tbug ------------------------------------
-
 e2a2 : 39                       rts
 e2a3 : 8615             INIT 	ldaa 	#$15    	;init acia-one stop bit and
 e2a5 : b78000                	staa 	ACIACN  	;8 bits of data no parity
@@ -530,9 +537,9 @@ e2a8 : 8601             	lda     #$01            ;set the WAIT bit to always r
 e2aa : b7a08b                   staa    RUBIG           ;don't ignore rubout/7
 e2ad : b7a08c                   staa    WAIT            ;Initialize the WAIT v
                         ;
-e2b0 : bde4ea           	jsr	piab_init	;Initialize the PIA for the LCD display
-e2b3 : bde4fc           	jsr	lcd_init	;Initialize the LCD display
-e2b6 : cee3f8                	ldx   	#TBSTR  	;print 'tbug'
+e2b0 : bde4ed           	jsr	piab_init	;Initialize the PIA for the LCD display
+e2b3 : bde4ff           	jsr	lcd_init	;Initialize the LCD display
+e2b6 : cee3fb                	ldx   	#TBSTR  	;print 'tbug'
 e2b9 : bde07e                	jsr   	PDATA
                         ;
 e2bc : 39               	rts
@@ -576,6 +583,9 @@ e2f6 : 8d1d             BLKTAB 	bsr   	BDSP    	;tabulate block of 64 bytes
 e2f8 : c640                    	ldab 	#$40    	;get address of start of block
 e2fa : cee394                	ldx   	#CRS
 e2fd : bde07e                	jsr   	PDATA   	;output carriage return etc.
+AS02 Assembler for M6802 [1.42].                                     Page   10
+------------------------------------ tbug ------------------------------------
+
 e300 : fea00c                	ldx   	XHI
 e303 : bde0bf           TAB2 	jsr   	OUT2H   	;output 2 hex chars (one byte)
 e306 : 8d0a                    	bsr   	OUTSLK  	;and 3 spaces
@@ -583,9 +593,6 @@ e308 : 8d08                    	bsr   	OUTSLK
 e30a : 8d06                    	bsr   	OUTSLK
 e30c : 5a                       decb         		;finished?
 e30d : 26f4                    	bne   	TAB2
-AS02 Assembler for M6802 [1.42].                                     Page   10
------------------------------------- tbug ------------------------------------
-
 e30f : 7ee0e3           C4   	jmp   	CONTRL
 e312 : 7ee0cc           OUTSLK 	jmp 	OUTS
                         ;
@@ -641,6 +648,9 @@ e367 : 26ee                   	bne   	NOMAT   	;branch if not
 e369 : cee391               	ldx   	#ENDST  	;say that we've found the end
 e36c : bde07e               	jsr   	PDATA   	;one of his files
 e36f : 20e6                   	bra   	NOMAT   	;and look again
+AS02 Assembler for M6802 [1.42].                                     Page   11
+------------------------------------ tbug ------------------------------------
+
 e371 : 5a               HDFN 	decb
 e372 : 26e5                   	bne   	N4IN    	;4 'soh' chars found no branch
 e374 : cea080               	ldx   	#NAME   	;point x to name searched for
@@ -648,9 +658,6 @@ e377 : bde1ac           CHREQ 	jsr 	INCH  	;get char of name comming in
 e37a : a100                   	cmpa 	0,x     	;do they match?
 e37c : 2709                   	beq   	NAMSM   	;if so then branch
 e37e : bde1ac           INNAM 	jsr 	INCH  	;dont match but print name
-AS02 Assembler for M6802 [1.42].                                     Page   11
------------------------------------- tbug ------------------------------------
-
 e381 : 810a                   	cmpa 	#LF     	;of file we've found anyway
 e383 : 26f9                   	bne   	INNAM
 e385 : 20d0                   	bra   	NOMAT   	;and look again
@@ -706,6 +713,9 @@ e3dc : 50                       db   	'P'     	;-punch in 's1' format
 e3dd : e13d                   	dw   	PUNCH
 e3df : 4c                       db   	'L'     	;-load 's1' format
 e3e0 : e00a                   	dw   	LOAD
+AS02 Assembler for M6802 [1.42].                                     Page   12
+------------------------------------ tbug ------------------------------------
+
 e3e2 : 56                       db   	'V'     	;-file with name
 e3e3 : e33e                   	dw   	SAVE
 e3e5 : 49                       db   	'I'     	;-input named file
@@ -713,22 +723,25 @@ e3e6 : e355                   	dw   	INFILE
 e3e8 : 54                       db   	'T'     	;-calculate branch offset
 e3e9 : e3a5                   	dw   	BCALC
 e3eb : 4b                       db   	'K'     	;-output a block of memory
-AS02 Assembler for M6802 [1.42].                                     Page   12
------------------------------------- tbug ------------------------------------
-
 e3ec : e2f6                   	dw   	BLKTAB
 e3ee : 59                       db   	'Y'     	;-copy block of memory
 e3ef : e2cd                   	dw   	COPY
 e3f1 : 4a                       db   	'J'     	;-jump to address
 e3f2 : e1a1                   	dw   	JUMP
+e3f4 : 55                       db   	'U'     	;-change serial format to 2 st
+e3f5 : e104                   	dw   	SERFORM
                         ;
-                        ;       db   	'U'     	;-change serial format to 2 st
-                        ;      	dw   	SERFORM
-e3f4 : 5a               	db	'Z'
-e3f5 : c000             	dw	$c000		;Mod to replicate SWTBUG ROM command
-e3f7 : 00               	db	0
+                        ;Since this will never be placed in a 1K ROM, just kee
                         ;
-e3f8 : 0d0a0a00005442.. TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
+e3f7 : 5a               	db	'Z'
+                        	if BASIC
+e3f8 : e617             	dw	load_basic	;load BASIC from ROM and launch it	
+                        	else
+                        	dw	$c000		;Mod to replicate SWTBUG ROM command
+                        	endif
+e3fa : 00               	db	0
+                        ;
+e3fb : 0d0a0a00005442.. TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
                         ;
                         ;Old vectors went here - now moved to end of larger RO
                         ;
@@ -765,6 +778,9 @@ e3f8 : 0d0a0a00005442.. TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
                         ;IMPORTANT: D0 needs to be high for the lcd display to
                         ;via lcd_outch.
                         ;
+AS02 Assembler for M6802 [1.42].                                     Page   13
+--------------------------------- lcd_driver ---------------------------------
+
                         ;Code is designed to be included (using 'include') wit
                         ;Include all the equates and storage defined in the ne
                         ;
@@ -778,9 +794,6 @@ e3f8 : 0d0a0a00005442.. TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
                         ;Use lcd_outch to display characters.
                         ;This routine processes CR, LF, BS and FF (clear scree
                         ;7F (RUBOUT) and all other ctrl characters are ignored
-AS02 Assembler for M6802 [1.42].                                     Page   13
---------------------------------- lcd_driver ---------------------------------
-
                         ;lcd_cursor can be used to set the cursor outside of l
                         ;
                         ;=====================================================
@@ -830,92 +843,92 @@ e3f8 : 0d0a0a00005442.. TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
                         ;Ignore null, prcesses CR, LF, FF and BS correctly, ev
                         ;as a regular character. Display will scroll when last
                         ;a and x are retained, row and col values are modified
-                        ;
-e402 : 36               lcd_outch	psha
-e403 : f68012           		ldab	PIABPR		;if D0 of PIA is low, skip outputing ch
-e406 : c401             		andb	#$01
-e408 : 275e             		beq	outretsb
-e40a : 8100             		cmpa	#NULL		;if null, then do nothing
-e40c : 275a             		beq	outretsb	
-e40e : 817f             		cmpa	#RUB		;ignore rubout chars, so do nothing
-e410 : 2756             		beq	outretsb
-e412 : 810d             		cmpa	#CR		;is it a CR?
-e414 : 2609             		bne	islf		;if not, branch
-e416 : b6a08d           		ldaa	lcd_row		;for CR, set cursor to col 0
-e419 : 5f               		clrb		
 AS02 Assembler for M6802 [1.42].                                     Page   14
 --------------------------------- lcd_driver ---------------------------------
 
-e41a : bde5ee           		jsr	lcd_cursor
-e41d : 207b             		bra	outret
                         ;
-e41f : 810a             islf		cmpa	#LF		;is it a LF?	
-e421 : 261e             		bne	isbs		;if not, branch
-e423 : b6a08d           		ldaa	lcd_row		;iscroll if needed
-e426 : 8101             		cmpa	#LCDROWS-1	;check if we are on the last line
-e428 : 260e             		bne	islf1		;is on last line, just scroll
-e42a : b6a08e           		ldaa	lcd_col		;get the current col
-e42d : bde49c           		jsr	lcd_scroll	;scroll display, a is preserved
-e430 : 16               		tab			;set back cursor after scroll
-e431 : 8601             		ldaa	#LCDROWS-1
-e433 : bde5ee           		jsr	lcd_cursor
-e436 : 2062             		bra	outret
+e405 : 36               lcd_outch	psha
+e406 : f68012           		ldab	PIABPR		;if D0 of PIA is low, skip outputing ch
+e409 : c401             		andb	#$01
+e40b : 275e             		beq	outretsb
+e40d : 8100             		cmpa	#NULL		;if null, then do nothing
+e40f : 275a             		beq	outretsb	
+e411 : 817f             		cmpa	#RUB		;ignore rubout chars, so do nothing
+e413 : 2756             		beq	outretsb
+e415 : 810d             		cmpa	#CR		;is it a CR?
+e417 : 2609             		bne	islf		;if not, branch
+e419 : b6a08d           		ldaa	lcd_row		;for CR, set cursor to col 0
+e41c : 5f               		clrb		
+e41d : bde5f1           		jsr	lcd_cursor
+e420 : 207b             		bra	outret
                         ;
-e438 : 4c               islf1		inca
-e439 : f6a08e           		ldab	lcd_col
-e43c : bde5ee           		jsr	lcd_cursor
-e43f : 2059             		bra	outret
+e422 : 810a             islf		cmpa	#LF		;is it a LF?	
+e424 : 261e             		bne	isbs		;if not, branch
+e426 : b6a08d           		ldaa	lcd_row		;iscroll if needed
+e429 : 8101             		cmpa	#LCDROWS-1	;check if we are on the last line
+e42b : 260e             		bne	islf1		;is on last line, just scroll
+e42d : b6a08e           		ldaa	lcd_col		;get the current col
+e430 : bde49f           		jsr	lcd_scroll	;scroll display, a is preserved
+e433 : 16               		tab			;set back cursor after scroll
+e434 : 8601             		ldaa	#LCDROWS-1
+e436 : bde5f1           		jsr	lcd_cursor
+e439 : 2062             		bra	outret
                         ;
-e441 : 8108             isbs		cmpa	#BS		;is it a BS?
-e443 : 261c             		bne	isff		;if not, branch
-e445 : f6a08e           		ldab	lcd_col		;load current column
-e448 : 2750             		beq	outret		;skip if already at zero column
-e44a : 5a               		decb			;move back one space
-e44b : b6a08d           		ldaa	lcd_row		;load row
-e44e : bde5ee           		jsr	lcd_cursor  	;point to previous character
-e451 : 8620             		ldaa	#SPACE		;clear current character
-e453 : 8dad             		jsr	lcd_outch
-e455 : b6a08d           		ldaa	lcd_row		;load cursor position again
-e458 : f6a08e           		ldab	lcd_col
-e45b : 5a               		decb			;move back one space
-e45c : bde5ee           		jsr	lcd_cursor
-e45f : 2039             		bra	outret
+e43b : 4c               islf1		inca
+e43c : f6a08e           		ldab	lcd_col
+e43f : bde5f1           		jsr	lcd_cursor
+e442 : 2059             		bra	outret
                         ;
-e461 : 810c             isff		cmpa	#FF		;is it a form feed (clear screen)?
-e463 : 2605             		bne	regchar
-e465 : bde549           		jsr	lcd_clear	;clear screen
-e468 : 2030             outretsb	bra	outret		;label is so a short branch will 
+e444 : 8108             isbs		cmpa	#BS		;is it a BS?
+e446 : 261c             		bne	isff		;if not, branch
+e448 : f6a08e           		ldab	lcd_col		;load current column
+e44b : 2750             		beq	outret		;skip if already at zero column
+e44d : 5a               		decb			;move back one space
+e44e : b6a08d           		ldaa	lcd_row		;load row
+e451 : bde5f1           		jsr	lcd_cursor  	;point to previous character
+e454 : 8620             		ldaa	#SPACE		;clear current character
+e456 : 8dad             		jsr	lcd_outch
+e458 : b6a08d           		ldaa	lcd_row		;load cursor position again
+e45b : f6a08e           		ldab	lcd_col
+e45e : 5a               		decb			;move back one space
+e45f : bde5f1           		jsr	lcd_cursor
+e462 : 2039             		bra	outret
+                        ;
+e464 : 810c             isff		cmpa	#FF		;is it a form feed (clear screen)?
+e466 : 2605             		bne	regchar
+e468 : bde54c           		jsr	lcd_clear	;clear screen
+e46b : 2030             outretsb	bra	outret		;label is so a short branch will 
                         ;
                         ;display a regular character. Wraps text and scrolls d
                         ;
-e46a : 8120             regchar		cmpa	#SPACE		;skip for any control characters
-e46c : 2d2c             		blt	outret
-e46e : f6a08e           		ldab	lcd_col		;test if at end of row
-e471 : c110             		cmpb	#LCDWIDTH
-e473 : 261f             		bne	regchar1	
-e475 : f6a08d           		ldab	lcd_row		;now check if we are on the last row
-e478 : c101             		cmpb	#LCDROWS-1
-e47a : 270d             		beq	regchar2
-e47c : 36               		psha			;if not on the last row, send CR,LF then disp
-e47d : 860d             		ldaa	#CR
-e47f : 8d81             		jsr	lcd_outch
-e481 : 860a             		ldaa	#LF
-e483 : bde402           		jsr	lcd_outch
-e486 : 32               		pula
-e487 : 200b             		bra	regchar1		
-e489 : bde49c           regchar2	jsr	lcd_scroll	;Last line reached, so scroll
-e48c : 36               		psha
-e48d : 8601             		ldaa	#LCDROWS-1	;set cursor to left most column
-e48f : 5f               		clrb
-e490 : bde5ee           		jsr	lcd_cursor
+e46d : 8120             regchar		cmpa	#SPACE		;skip for any control characters
+e46f : 2d2c             		blt	outret
+e471 : f6a08e           		ldab	lcd_col		;test if at end of row
+e474 : c110             		cmpb	#LCDWIDTH
+e476 : 261f             		bne	regchar1	
+e478 : f6a08d           		ldab	lcd_row		;now check if we are on the last row
+e47b : c101             		cmpb	#LCDROWS-1
 AS02 Assembler for M6802 [1.42].                                     Page   15
 --------------------------------- lcd_driver ---------------------------------
 
-e493 : 32               		pula
-e494 : bde583           regchar1	jsr	lcd_char	;display character
-e497 : 7ca08e           		inc	lcd_col		;inc stored col count
-e49a : 32               outret		pula
-e49b : 39               		rts	
+e47d : 270d             		beq	regchar2
+e47f : 36               		psha			;if not on the last row, send CR,LF then disp
+e480 : 860d             		ldaa	#CR
+e482 : 8d81             		jsr	lcd_outch
+e484 : 860a             		ldaa	#LF
+e486 : bde405           		jsr	lcd_outch
+e489 : 32               		pula
+e48a : 200b             		bra	regchar1		
+e48c : bde49f           regchar2	jsr	lcd_scroll	;Last line reached, so scroll
+e48f : 36               		psha
+e490 : 8601             		ldaa	#LCDROWS-1	;set cursor to left most column
+e492 : 5f               		clrb
+e493 : bde5f1           		jsr	lcd_cursor
+e496 : 32               		pula
+e497 : bde586           regchar1	jsr	lcd_char	;display character
+e49a : 7ca08e           		inc	lcd_col		;inc stored col count
+e49d : 32               outret		pula
+e49e : 39               		rts	
                         ;
                         ;
                         ;Scroll display up one line. Handles all formats of di
@@ -927,257 +940,319 @@ e49b : 39               		rts
                         ;
                         ;Calculate backing store offset, store in lcd_tempx
                         ;
-e49c : 36               lcd_scroll	psha
-e49d : 5f               		clrb			;clear offset
-e49e : 8601             		ldaa	#$1		;start at row 1 ***********TEMP, FIX FOR L
-e4a0 : cb10             scrlcont	addb	#LCDWIDTH	
-e4a2 : 4a               		deca
-e4a3 : 26fb             		bne	scrlcont	;done with calculating offset	
+e49f : 36               lcd_scroll	psha
+e4a0 : 5f               		clrb			;clear offset
+e4a1 : 8601             		ldaa	#$1		;start at row 1 ***********TEMP, FIX FOR L
+e4a3 : cb10             scrlcont	addb	#LCDWIDTH	
+e4a5 : 4a               		deca
+e4a6 : 26fb             		bne	scrlcont	;done with calculating offset	
                         ;		
-e4a5 : 1b               		aba			;store final offset in a
-e4a6 : cea08f           		ldx	#lcd_buf	;load start of buffer address into x
-e4a9 : ffa0b1           		stx	lcd_buf_addr	;store in memory so we can split in
-e4ac : f6a0b2           		ldab	lcd_buf_addr+1	;load the lsb of the buffer addr
-e4af : 1b               		aba			;add offset (which will always be < 4x40, max 
-e4b0 : b7a0b0           		staa	lcd_tempx+1	;store lsb in temp mem address		
-e4b3 : b6a0b1           		ldaa	lcd_buf_addr	;load the msb of the buffer addres
-e4b6 : 8900             		adca	#$0		;add the carry to the msb (this is a 8 + 1
-e4b8 : b7a0af           		staa	lcd_tempx	;store result in temp
-e4bb : fea0af           		ldx	lcd_tempx	;load full 16 bit address value into x
+e4a8 : 1b               		aba			;store final offset in a
+e4a9 : cea08f           		ldx	#lcd_buf	;load start of buffer address into x
+e4ac : ffa0b1           		stx	lcd_buf_addr	;store in memory so we can split in
+e4af : f6a0b2           		ldab	lcd_buf_addr+1	;load the lsb of the buffer addr
+e4b2 : 1b               		aba			;add offset (which will always be < 4x40, max 
+e4b3 : b7a0b0           		staa	lcd_tempx+1	;store lsb in temp mem address		
+e4b6 : b6a0b1           		ldaa	lcd_buf_addr	;load the msb of the buffer addres
+e4b9 : 8900             		adca	#$0		;add the carry to the msb (this is a 8 + 1
+e4bb : b7a0af           		staa	lcd_tempx	;store result in temp
+e4be : fea0af           		ldx	lcd_tempx	;load full 16 bit address value into x
                         ;	
-e4be : 4f               		clra			;TEMP hard coded as row 0
-e4bf : 5f               		clrb
-e4c0 : bde5ee           		jsr	lcd_cursor	;point to next row to be copied to
-e4c3 : c610             		ldab	#LCDWIDTH	;load col counter with display width
-e4c5 : a600             scrlcp		ldaa	0,x		;load current character from backing
-e4c7 : 37               		pshb			;preserve b
-e4c8 : bde583           		jsr	lcd_char	;write character	
-e4cb : 7ca08e           		inc	lcd_col		;increament store col count
-e4ce : 33               		pulb			;get back b
-e4cf : 08               		inx			;point to next char in backing store
-e4d0 : 5a               		decb	
-e4d1 : 26f2             		bne	scrlcp		;done with copying row?
+e4c1 : 4f               		clra			;TEMP hard coded as row 0
+e4c2 : 5f               		clrb
+e4c3 : bde5f1           		jsr	lcd_cursor	;point to next row to be copied to
+e4c6 : c610             		ldab	#LCDWIDTH	;load col counter with display width
+e4c8 : a600             scrlcp		ldaa	0,x		;load current character from backing
+e4ca : 37               		pshb			;preserve b
+e4cb : bde586           		jsr	lcd_char	;write character	
+e4ce : 7ca08e           		inc	lcd_col		;increament store col count
+e4d1 : 33               		pulb			;get back b
+e4d2 : 08               		inx			;point to next char in backing store
+e4d3 : 5a               		decb	
+e4d4 : 26f2             		bne	scrlcp		;done with copying row?
                         ;
                         ;Clear last line
                         ;
-e4d3 : 8601             		ldaa	#LCDROWS-1
-e4d5 : 5f               		clrb
-e4d6 : bde5ee           		jsr	lcd_cursor
-e4d9 : c610             		ldab	#LCDWIDTH	
-e4db : 8620             		ldaa	#SPACE
-e4dd : 37               scrlcll		pshb
-e4de : bde583           		jsr	lcd_char
-e4e1 : 7ca08e           		inc	lcd_col		;increment stored col count
-e4e4 : 33               		pulb
-e4e5 : 5a               		decb
-e4e6 : 26f5             		bne	scrlcll
-                        ;
-e4e8 : 32               		pula
 AS02 Assembler for M6802 [1.42].                                     Page   16
 --------------------------------- lcd_driver ---------------------------------
 
-e4e9 : 39               		rts
+e4d6 : 8601             		ldaa	#LCDROWS-1
+e4d8 : 5f               		clrb
+e4d9 : bde5f1           		jsr	lcd_cursor
+e4dc : c610             		ldab	#LCDWIDTH	
+e4de : 8620             		ldaa	#SPACE
+e4e0 : 37               scrlcll		pshb
+e4e1 : bde586           		jsr	lcd_char
+e4e4 : 7ca08e           		inc	lcd_col		;increment stored col count
+e4e7 : 33               		pulb
+e4e8 : 5a               		decb
+e4e9 : 26f5             		bne	scrlcll
+                        ;
+e4eb : 32               		pula
+e4ec : 39               		rts
                         ;
                         ;Init PIAB as 8 bits of output lines
                         ;
-e4ea : 4f               piab_init	clra                    ;set up PIA
-e4eb : b78013           		staa    PIABCN
-e4ee : 86fe             		ldaa    #$fe		;set PIA ad D0 input, D1-D7 as output
-e4f0 : b78012           		staa    PIABPR
-e4f3 : 8604             		ldaa    #$04
-e4f5 : b78013           		staa    PIABCN
-e4f8 : 7f8012           		clr     PIABPR
-e4fb : 39               		rts
+e4ed : 4f               piab_init	clra                    ;set up PIA
+e4ee : b78013           		staa    PIABCN
+e4f1 : 86fe             		ldaa    #$fe		;set PIA ad D0 input, D1-D7 as output
+e4f3 : b78012           		staa    PIABPR
+e4f6 : 8604             		ldaa    #$04
+e4f8 : b78013           		staa    PIABCN
+e4fb : 7f8012           		clr     PIABPR
+e4fe : 39               		rts
                         ;
                         ;Init lcd display
                         ;Lots off odd timing here. Also, we have to start by s
                         ;30h commands to resync the display into reading 8 bit
                         ;
-e4fc : ce04e2           lcd_init	ldx	#1250		;wait 100ms0
-e4ff : 8d6f             		bsr	ldelay
-e501 : 8630             		ldaa	#$30		;start by sending three 30h commands	
-e503 : 8d6f             		bsr 	lcd_cmd8
-e505 : ce0271           		ldx	#625		;wait 5ms
-e508 : 8d66             		bsr	ldelay
-e50a : 8630             		ldaa	#$30
-e50c : 8d66             		bsr 	lcd_cmd8
-e50e : c611             		ldab	#17		;wait 100us
-e510 : 8d5a             		bsr	sdelay
-e512 : 8630             		ldaa	#$30
-e514 : 8d5e             		bsr 	lcd_cmd8
-e516 : c611             		ldab	#17		;wait 100us	
-e518 : 8d52             		bsr 	sdelay	
-e51a : 8620             		ldaa	#$20		;Set to 4 bit mode
-e51c : 8d56             		bsr 	lcd_cmd8
-e51e : c611             		ldab	#17
-e520 : 8d4a             		bsr	sdelay		;wait 100us
+e4ff : ce04e2           lcd_init	ldx	#1250		;wait 100ms0
+e502 : 8d6f             		bsr	ldelay
+e504 : 8630             		ldaa	#$30		;start by sending three 30h commands	
+e506 : 8d6f             		bsr 	lcd_cmd8
+e508 : ce0271           		ldx	#625		;wait 5ms
+e50b : 8d66             		bsr	ldelay
+e50d : 8630             		ldaa	#$30
+e50f : 8d66             		bsr 	lcd_cmd8
+e511 : c611             		ldab	#17		;wait 100us
+e513 : 8d5a             		bsr	sdelay
+e515 : 8630             		ldaa	#$30
+e517 : 8d5e             		bsr 	lcd_cmd8
+e519 : c611             		ldab	#17		;wait 100us	
+e51b : 8d52             		bsr 	sdelay	
+e51d : 8620             		ldaa	#$20		;Set to 4 bit mode
+e51f : 8d56             		bsr 	lcd_cmd8
+e521 : c611             		ldab	#17
+e523 : 8d4a             		bsr	sdelay		;wait 100us
                         ;
                         ;Done with 8 bit access, now in 4 bit mode
                         ;
-e522 : 8628             		ldaa	#$28		;set to 2 line 5x7 mode
-e524 : bde5d0           		jsr 	lcd_cmd
-e527 : c609             		ldab	#9		;wait 50us
-e529 : 8d41             		bsr	sdelay
-e52b : 8608             		ldaa	#$08		;set display off
-e52d : bde5d0           		jsr 	lcd_cmd
-e530 : c609             		ldab	#9		;wait 50us
-e532 : 8d38             		bsr	sdelay
-e534 : 8606              		ldaa	#$06		;no shift, cursor increases
-e536 : bde5d0           		jsr 	lcd_cmd
-e539 : c609             		ldab	#9		;wait 50us
-e53b : 8d2f             		bsr	sdelay
-e53d : 860e             		ldaa	#$0e		;display on, cursor on, etc.
-e53f : bde5d0           		jsr 	lcd_cmd
-e542 : c609             		ldab	#9		;wait 50us
-e544 : 8d26             		bsr	sdelay	
-e546 : 8d01             		bsr 	lcd_clear		;clear display, home cursor
-e548 : 39               		rts
-                        ;
-                        ;Clear screen, set cursor to home positiom
-                        ;
-e549 : ffa0b3           lcd_clear	stx	lcd_charx	;preserve x
-e54c : 8601             		ldaa    #$01            ;clear screen
-e54e : bde5d0           		jsr     lcd_cmd
+e525 : 8628             		ldaa	#$28		;set to 2 line 5x7 mode
+e527 : bde5d3           		jsr 	lcd_cmd
+e52a : c609             		ldab	#9		;wait 50us
+e52c : 8d41             		bsr	sdelay
+e52e : 8608             		ldaa	#$08		;set display off
+e530 : bde5d3           		jsr 	lcd_cmd
+e533 : c609             		ldab	#9		;wait 50us
+e535 : 8d38             		bsr	sdelay
+e537 : 8606              		ldaa	#$06		;no shift, cursor increases
+e539 : bde5d3           		jsr 	lcd_cmd
+e53c : c609             		ldab	#9		;wait 50us
 AS02 Assembler for M6802 [1.42].                                     Page   17
 --------------------------------- lcd_driver ---------------------------------
 
-e551 : c6ff             		ldab    #$ff            ;delay for 1.53ms after clea
-e553 : 8d17             		bsr     sdelay
-e555 : 7fa08d           		clr	lcd_row		;reset local copy of cursor position
-e558 : 7fa08e           		clr	lcd_col
-e55b : cea08f           		ldx	#lcd_buf	;clear lcd backing buffer (write spaces
-e55e : 8620             		ldaa	#SPACE		;load a space character
-e560 : a700             clearlp		staa	0,x		;store in buffer	
-e562 : 08               		inx
-e563 : 8ca0af           		cpx	#lcd_buf+LCDBUFSZ
-e566 : 26f8             		bne	clearlp
-e568 : fea0b3           		ldx	lcd_charx	;restore x
-e56b : 39               		rts
+e53e : 8d2f             		bsr	sdelay
+e540 : 860e             		ldaa	#$0e		;display on, cursor on
+                        		;ldaa	#$0f		;display on, cursor on, cursor blink
+e542 : bde5d3           		jsr 	lcd_cmd
+e545 : c609             		ldab	#9		;wait 50us
+e547 : 8d26             		bsr	sdelay	
+e549 : 8d01             		bsr 	lcd_clear		;clear display, home cursor
+e54b : 39               		rts
+                        ;
+                        ;Clear screen, set cursor to home positiom
+                        ;
+e54c : ffa0b3           lcd_clear	stx	lcd_charx	;preserve x
+e54f : 8601             		ldaa    #$01            ;clear screen
+e551 : bde5d3           		jsr     lcd_cmd
+e554 : c6ff             		ldab    #$ff            ;delay for 1.53ms after clea
+e556 : 8d17             		bsr     sdelay
+e558 : 7fa08d           		clr	lcd_row		;reset local copy of cursor position
+e55b : 7fa08e           		clr	lcd_col
+e55e : cea08f           		ldx	#lcd_buf	;clear lcd backing buffer (write spaces
+e561 : 8620             		ldaa	#SPACE		;load a space character
+e563 : a700             clearlp		staa	0,x		;store in buffer	
+e565 : 08               		inx
+e566 : 8ca0af           		cpx	#lcd_buf+LCDBUFSZ
+e569 : 26f8             		bne	clearlp
+e56b : fea0b3           		ldx	lcd_charx	;restore x
+e56e : 39               		rts
                         ;
                         ;Short delay, delay value passed in b
                         ;Delay = (2+4)*b in microseconds
                         ;
-e56c : 5a               sdelay		decb			;decrement b
-e56d : 26fd             		bne sdelay
-e56f : 39               		rts
+e56f : 5a               sdelay		decb			;decrement b
+e570 : 26fd             		bne sdelay
+e572 : 39               		rts
                         ;
                         ;Long delay, delay valaue passed in x
                         ;Delay = (4+4)*x in microseconds
                         ;
-e570 : 09               ldelay		dex
-e571 : 26fd             		bne ldelay
-e573 : 39               		rts
+e573 : 09               ldelay		dex
+e574 : 26fd             		bne ldelay
+e576 : 39               		rts
                         ;
                         ;Send lcd command when display is in 8 bit mode
                         ;Note: this is only used during init
                         ;
-e574 : 36               lcd_cmd8	psha			;Save a reg
-e575 : 84f0             		anda	#$f0		;remove lower nibble since display is wir
-e577 : 8a08             		oraa	#$08		;Set RS = 0, E = 1
-e579 : b78012           		staa	PIABPR		;output PIA
+e577 : 36               lcd_cmd8	psha			;Save a reg
+e578 : 84f0             		anda	#$f0		;remove lower nibble since display is wir
+e57a : 8a08             		oraa	#$08		;Set RS = 0, E = 1
+e57c : b78012           		staa	PIABPR		;output PIA
                         					;placeholder - delay needed if hold time <10ns
-e57c : 84f7             		anda	#$F7		;set RS = 0, E = 0
-e57e : b78012           		staa	PIABPR		;leave date as-is but set E = 0
-e581 : 32               		pula			;restore a reg
-e582 : 39               		rts	
+e57f : 84f7             		anda	#$F7		;set RS = 0, E = 0
+e581 : b78012           		staa	PIABPR		;leave date as-is but set E = 0
+e584 : 32               		pula			;restore a reg
+e585 : 39               		rts	
                         ;
                         ;Send character in a reg to LCD. A contains full 8 bit
                         ;Note: a reg is preserved, b is not, x is preserved
                         ;Also store character in backing buffer
                         ;
-e583 : 36               lcd_char	psha                    ;Save a reg
-e584 : ffa0b3           		stx	lcd_charx	;preserve x
-e587 : 16               		tab			;send high nible first
-e588 : c4f0             		andb	#$f0
-e58a : ca0c             		orab	#$0c		;set RS = 1, E = 1
-e58c : f78012           		stab	PIABPR		;send to PIA
-                        					;placeholder - delay needed if hold time <10ns
-e58f : c4f7             		andb	#$F7		;set E = 0, RS = 0
-e591 : f78012           		stab	PIABPR		;send to PIA
-e594 : 48                               lsla                    ;Shift data to
-e595 : 48                               lsla
-e596 : 48                               lsla
-e597 : 48                               lsla
-e598 : 8a0c             		oraa    #$0c            ;set RS = 1, E = 1			 
-e59a : b78012           		staa	PIABPR          ;send lower nibble to PIA
-                        					;placeholder - delay needed if hold time <10ns
-e59d : 84f7             		anda    #$F7            ;set E = 0
-e59f : b78012           		staa	PIABPR		;send to PIA
+e586 : 36               lcd_char	psha                    ;Save a reg
+e587 : ffa0b3           		stx	lcd_charx	;preserve x
+e58a : 16               		tab			;send high nible first
+e58b : c4f0             		andb	#$f0
 AS02 Assembler for M6802 [1.42].                                     Page   18
 --------------------------------- lcd_driver ---------------------------------
 
+e58d : ca0c             		orab	#$0c		;set RS = 1, E = 1
+e58f : f78012           		stab	PIABPR		;send to PIA
+                        					;placeholder - delay needed if hold time <10ns
+e592 : c4f7             		andb	#$F7		;set E = 0, RS = 0
+e594 : f78012           		stab	PIABPR		;send to PIA
+e597 : 48                               lsla                    ;Shift data to
+e598 : 48                               lsla
+e599 : 48                               lsla
+e59a : 48                               lsla
+e59b : 8a0c             		oraa    #$0c            ;set RS = 1, E = 1			 
+e59d : b78012           		staa	PIABPR          ;send lower nibble to PIA
+                        					;placeholder - delay needed if hold time <10ns
+e5a0 : 84f7             		anda    #$F7            ;set E = 0
+e5a2 : b78012           		staa	PIABPR		;send to PIA
                         ;
                         ;Save character to backing store
                         ;
-e5a2 : 5f               		clrb
-e5a3 : b6a08d           		ldaa	lcd_row		;get current row
-e5a6 : 2705             lcd_addrow	beq	lcd_addcol	;done with row adds
-e5a8 : cb10             		addb	#LCDWIDTH			
-e5aa : 4a               		deca
-e5ab : 20f9             		bra	lcd_addrow
-e5ad : fba08e           lcd_addcol	addb	lcd_col		;add the column offset	
-e5b0 : 17               		tba			;store final offset in a
-e5b1 : cea08f           		ldx	#lcd_buf	;load start of buffer address into x
-e5b4 : ffa0b1           		stx	lcd_buf_addr	;store in memory so we can split in
-e5b7 : f6a0b2           		ldab	lcd_buf_addr+1	;load the lsb of the buffer addr
-e5ba : 1b               		aba			;add offset (which will always be < 4x40, max 
-e5bb : b7a0b0           		staa	lcd_tempx+1	;store lsb in temp mem address		
-e5be : b6a0b1           		ldaa	lcd_buf_addr	;load the msb of the buffer addres
-e5c1 : 8900             		adca	#$0		;add the carry to the msb (this is a 8 + 1
-e5c3 : b7a0af           		staa	lcd_tempx	;store result in temp
+e5a5 : 5f               		clrb
+e5a6 : b6a08d           		ldaa	lcd_row		;get current row
+e5a9 : 2705             lcd_addrow	beq	lcd_addcol	;done with row adds
+e5ab : cb10             		addb	#LCDWIDTH			
+e5ad : 4a               		deca
+e5ae : 20f9             		bra	lcd_addrow
+e5b0 : fba08e           lcd_addcol	addb	lcd_col		;add the column offset	
+e5b3 : 17               		tba			;store final offset in a
+e5b4 : cea08f           		ldx	#lcd_buf	;load start of buffer address into x
+e5b7 : ffa0b1           		stx	lcd_buf_addr	;store in memory so we can split in
+e5ba : f6a0b2           		ldab	lcd_buf_addr+1	;load the lsb of the buffer addr
+e5bd : 1b               		aba			;add offset (which will always be < 4x40, max 
+e5be : b7a0b0           		staa	lcd_tempx+1	;store lsb in temp mem address		
+e5c1 : b6a0b1           		ldaa	lcd_buf_addr	;load the msb of the buffer addres
+e5c4 : 8900             		adca	#$0		;add the carry to the msb (this is a 8 + 1
+e5c6 : b7a0af           		staa	lcd_tempx	;store result in temp
                         ;	
-e5c6 : 32               		pula			;restore character
-e5c7 : fea0af           		ldx	lcd_tempx	;store char in backing buffer based on
-e5ca : a700             		staa	0,x
-e5cc : fea0b3           		ldx	lcd_charx	;restore x
-e5cf : 39               		rts
+e5c9 : 32               		pula			;restore character
+e5ca : fea0af           		ldx	lcd_tempx	;store char in backing buffer based on
+e5cd : a700             		staa	0,x
+e5cf : fea0b3           		ldx	lcd_charx	;restore x
+e5d2 : 39               		rts
                         ;
                         ;Send command in a reg to LCD. A contains full 8 bit c
                         ;Note: a reg is preserved, b is not
                         ;
-e5d0 : 36               lcd_cmd		psha                    ;Save a reg
-e5d1 : 16               		tab                     ;send high nible first
-e5d2 : c4f0             		andb    #$f0
-e5d4 : ca08             		orab    #$08            ;set RS = 0, E = 1
-e5d6 : f78012           		stab    PIABPR          ;send to PIA
+e5d3 : 36               lcd_cmd		psha                    ;Save a reg
+e5d4 : 16               		tab                     ;send high nible first
+e5d5 : c4f0             		andb    #$f0
+e5d7 : ca08             		orab    #$08            ;set RS = 0, E = 1
+e5d9 : f78012           		stab    PIABPR          ;send to PIA
                         					;placeholder - delay needed if hold time <10ns
-e5d9 : c4f3             		andb    #$F3            ;set E = 0, RS = 0
-e5db : f78012           		stab    PIABPR          ;send to PIA
-e5de : 48               		lsla                    ;Shift data to upper nibble 
-e5df : 48               		lsla
-e5e0 : 48               		lsla
-e5e1 : 48               		lsla
-e5e2 : 8a08             		oraa    #$08            ;set RS = 0, E = 1          
-e5e4 : b78012           		staa    PIABPR          ;send lower nibble to PIA
+e5dc : c4f3             		andb    #$F3            ;set E = 0, RS = 0
+e5de : f78012           		stab    PIABPR          ;send to PIA
+e5e1 : 48               		lsla                    ;Shift data to upper nibble 
+e5e2 : 48               		lsla
+e5e3 : 48               		lsla
+e5e4 : 48               		lsla
+e5e5 : 8a08             		oraa    #$08            ;set RS = 0, E = 1          
+e5e7 : b78012           		staa    PIABPR          ;send lower nibble to PIA
                         					;placeholder - delay needed if hold time <10ns
-e5e7 : 84f3             		anda    #$F3            ;set E = 0
-e5e9 : b78012           		staa    PIABPR          ;send to PIA
-e5ec : 32               		pula
-e5ed : 39               		rts
+e5ea : 84f3             		anda    #$F3            ;set E = 0
+e5ec : b78012           		staa    PIABPR          ;send to PIA
+e5ef : 32               		pula
+e5f0 : 39               		rts
+AS02 Assembler for M6802 [1.42].                                     Page   19
+--------------------------------- lcd_driver ---------------------------------
+
                         ;
                         ;Set cursor position. Row in a, col in b, zero == lowe
                         ;The command to do this is 80h + (row * 40h (so line s
                         ;
-e5ee : b7a08d           lcd_cursor	staa	lcd_row		;store local copies of row an
-e5f1 : f7a08e           		stab	lcd_col	
-e5f4 : 48               		lsla			;Multiply row number by 40h
-e5f5 : 48               		lsla
-e5f6 : 48               		lsla
-e5f7 : 48               		lsla
+e5f1 : b7a08d           lcd_cursor	staa	lcd_row		;store local copies of row an
+e5f4 : f7a08e           		stab	lcd_col	
+e5f7 : 48               		lsla			;Multiply row number by 40h
 e5f8 : 48               		lsla
 e5f9 : 48               		lsla
-e5fa : 8a80             		ora	#$80		;add to command
-e5fc : 1b               		aba			;add col to address
-AS02 Assembler for M6802 [1.42].                                     Page   19
---------------------------------- lcd_driver ---------------------------------
-
-e5fd : 8dd1             		bsr	lcd_cmd		;send to display
-e5ff : 39               		rts
+e5fa : 48               		lsla
+e5fb : 48               		lsla
+e5fc : 48               		lsla
+e5fd : 8a80             		ora	#$80		;add to command
+e5ff : 1b               		aba			;add col to address
+e600 : 8dd1             		bsr	lcd_cmd		;send to display
+e602 : 39               		rts
                         
                         		
                         		
                         
                         ;
+                        ;
+                        	if	BASIC
+                        ;###########################################
+                        ;
+                        ; ROM copy code that copies a ROM image of TSC MicroBa
+                        ; then runs it.
+                        ; BASIC can't run directly from ROM because it has sel
+                        ; code :(
+                        ;
+                        ;Start and end of ROM BASIC image - pushed right to th
+                        ;page of memory
+                        ;
+f3a3 =                  BASIC_START		equ	$f3a3
+fff7 =                  BASIC_END		equ	$fff7
+0100 =                  DEST_START              equ     $0100
+0100 =                  BASIC_EXEC_START        equ     $0100
+e603 : 0d0a4c6f616469.. basic_copymsg   db      CR,LF,"Loading BASIC... ",EOT
+1f00 =                  EXTERN			equ	$1f00		;TSC BASIC writes 'rts' to this lo
+                        ;
+                        ; Copy BASIC image to ROM, then run it
+                        ;
+e617 : cee603           load_basic      ldx     #basic_copymsg		;display copy 
+e61a : bde07e                           jsr     PDATA
+e61d : ce0100                           ldx     #DEST_START             ;load 
+e620 : ffa00f                           stx     TW
+e623 : cef3a3                           ldx     #BASIC_START        	;load sou
+e626 : ffa002                           stx     BEGA
+e629 : cefff7                           ldx     #BASIC_END          	;load end
+e62c : ffa004                           stx     ENDA
+e62f : 8d0a                             bsr     memcopy                 ;copy 
+e631 : ce1f00           		ldx	#EXTERN			;write 'rts' instruction to the EXTERN
+e634 : 8639             		ldaa	#$39			;look at the TSC MicroBasic source code.
+e636 : a700             		staa	0,x
+e638 : 7e0100                           jmp     BASIC_EXEC_START        ;jump 
+                        ;
+                        ; memcopy routine. Destination start is in TW, source 
+                        ;
+e63b : fea002           memcopy         ldx     BEGA
+e63e : a600                             ldaa    0,x                     ;load 
+e640 : 08                               inx
+e641 : bca004                           cpx     ENDA
+AS02 Assembler for M6802 [1.42].                                     Page   20
+--------------------------------- lcd_driver ---------------------------------
+
+e644 : 270e                             beq     done
+e646 : ffa002                           stx     BEGA
+e649 : fea00f                           ldx     TW                      ;load 
+e64c : a700                             staa    0,x                     ;copy 
+e64e : 08                               inx
+e64f : ffa00f                           stx     TW
+e652 : 20e7                             bra     memcopy
+e654 : 39               done            rts
+                        
+                        	endif
+                        ;
+                        ;
+                        ;###########################################
+                        ;
+                        ; BASIC image lives here, but is added in the build sc
+                        ; Start = F3A3H
+                        ; End = FFF7H
                         ;
                         ;###########################################
                         ;

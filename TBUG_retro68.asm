@@ -13,6 +13,7 @@
 ;			  with the stack for loaded program such as BASIC (duh). Also, hooked up LCD dislay
 ;			  code.			  			
 ;	2.4	3/15/25 - Added code to fix RUBIG and WAIT issues.
+;	2.5	3/21/25	- Added back 'U' command, added TSC MicroBasic loader (Z command) with optional switches	
 ;
 ; Note: Spare space labbeled with 'SPARE SPACE'
 ;
@@ -35,6 +36,12 @@ VERIFY          macro   expected
                 endif
                 endm
 ;
+false           equ     0
+true            equ     ~false
+
+; Options
+;
+BASIC	equ	true	;include TSC MicroBasic image and loader
 ;
                 bss
                 org     $A000
@@ -669,11 +676,17 @@ TABLE 	db   	'G'     	;-jump table for command
       	dw   	COPY
         db   	'J'     	;-jump to address
       	dw   	JUMP
+        db   	'U'     	;-change serial format to 2 st
+      	dw   	SERFORM
 ;
-;       db   	'U'     	;-change serial format to 2 st
-;      	dw   	SERFORM
+;Since this will never be placed in a 1K ROM, just keep adding new commands here
+;
 	db	'Z'
+	if BASIC
+	dw	load_basic	;load BASIC from ROM and launch it	
+	else
 	dw	$c000		;Mod to replicate SWTBUG ROM command
+	endif
 	db	0
 ;
 TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
@@ -692,6 +705,64 @@ TBSTR   db      CR,LF,LF,0,0,"TBUG",EOT
 
 	include	"lcd/lcd_driver.asm"	;LCD driver code
 ;
+;
+	if	BASIC
+;###########################################
+;
+; ROM copy code that copies a ROM image of TSC MicroBasic BASIC into RAM, 
+; then runs it.
+; BASIC can't run directly from ROM because it has self modifying
+; code :(
+;
+;Start and end of ROM BASIC image - pushed right to the end of the last 8K
+;page of memory
+;
+BASIC_START		equ	$f3a3
+BASIC_END		equ	$fff7
+DEST_START              equ     $0100
+BASIC_EXEC_START        equ     $0100
+basic_copymsg   db      CR,LF,"Loading BASIC... ",EOT
+EXTERN			equ	$1f00		;TSC BASIC writes 'rts' to this location for external subroutines
+;
+; Copy BASIC image to ROM, then run it
+;
+load_basic      ldx     #basic_copymsg		;display copy message
+                jsr     PDATA
+                ldx     #DEST_START             ;load destination start address
+                stx     TW
+                ldx     #BASIC_START        	;load source start addfress
+                stx     BEGA
+                ldx     #BASIC_END          	;load end address
+                stx     ENDA
+                bsr     memcopy                 ;copy image     
+		ldx	#EXTERN			;write 'rts' instruction to the EXTERN location (go
+		ldaa	#$39			;look at the TSC MicroBasic source code...)				
+		staa	0,x
+                jmp     BASIC_EXEC_START        ;jump to program start
+;
+; memcopy routine. Destination start is in TW, source start/end are in BEGA/ENDA
+;
+memcopy         ldx     BEGA
+                ldaa    0,x                     ;load byte to copy
+                inx
+                cpx     ENDA
+                beq     done
+                stx     BEGA
+                ldx     TW                      ;load current destination
+                staa    0,x                     ;copy byte
+                inx
+                stx     TW
+                bra     memcopy
+done            rts
+
+	endif
+;
+;
+;###########################################
+;
+; BASIC image lives here, but is added in the build script
+; Start = F3A3H
+; End = FFF7H
 ;
 ;###########################################
 ;

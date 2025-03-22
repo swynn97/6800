@@ -1,12 +1,17 @@
 #!/bin/bash          
 
-# Bbuild script for Retro68 ROM that includes a image of SWTPC 8K BASIC.
-# BASIC and the routine to copy this into RAM are concatenated onto the TBUG hex file.
-# This is done this way since there is no such thing as a linker here, and I don't have i
-# the source for SWTPC BASIC so I can't build this as part of TBUG.
+# Build script for Retro68 ROM that includes a image of TSC 4K MicroBasic
+# BASIC is concatenated onto the end of TBUG hex file as is based on a pre-built binary.
 #
-# Binary image names
-SWTPC_BASIC=SWTPC_8K_BASIC_v22_7768.S19
+# Note, this build does not have a separate 'romcopy' program, but rather this is
+# internal to TBUG (unlike the SWTPC 8K BASIC version of this script)
+#
+# Also, check TBUG soure for any conditional switches to make sure all the correct
+# code is included!
+#
+
+# TSC binary image name
+MICRO_BASIC=4KBasic_Mot_Asm.s19
 
 # delete old outpout file
 rm retro68.hex
@@ -19,47 +24,40 @@ mv TBUG_retro68.hex retro68.hex
 # strip off last line of tbug image hex file so we can concatenate later on
 sed -i '$ d' retro68.hex
 
-# build rom copy routine
-cp ./romcopy/romcopy.asm .
-as02 romcopy.asm -s2l
+# TSC MicroBasic
+#***************
 
-# strip off last line (end record) from romcopy.hex
-# so it can be concatenated later on in this script
-sed -i '$ d' romcopy.hex
+# copy MicroBasic binary image from 4KBasic directory
+cp ./4KBasic/$MICRO_BASIC .
 
-# SWTPC BASIC
-#************
+#Sstrip off s9 from end of MicroBasic file because srec_cat doesn't like it
+#Also strip off the EXTERN RTS code since this is easier to just write an RTS
+#using the copy code - so just run sed twice to delete 2 last lines
+sed -i '$d' $MICRO_BASIC
+sed -i '$d' $MICRO_BASIC
 
-# copy SWTPC BASIC binary image from 8KBasic directory
-cp ./8KBasic/$SWTPC_BASIC .
+# Relocate MicroBasic BASIC to F2A3H, which means the actual code starts
+# F3A3H (original code has a 0100H offset from 0H) and ends at FFF7H, one
+# byte before the reset vectors at FFF8H. That was lots of math...
+srec_cat $MICRO_BASIC --offset=0xf2a3 > microbasic.s19
 
-#strip off s9 from end of BASIC file, because srec_cat doesn't like it
-truncate -s-4 $SWTPC_BASIC
+# convert MicroBasic BASIC to Intel HEX
+objcopy -I srec -O ihex microbasic.s19 microbasic.hex
 
-# relocate SWTPC BASIC to C100H
-srec_cat $SWTPC_BASIC --offset=0xc100 > swtpc.s19
-
-# convert SWTPC BASIC to Intel HEX
-objcopy -I srec -O ihex swtpc.s19 swtpc.hex
-
-# strip off last line of swtpc basic hex file so it can be concatenated
-sed -i '$ d' swtpc.hex
+# strip off last line of MicroBasic basic hex file so it can be concatenated
+sed -i '$ d' microbasic.hex
 
 # build final Intel hex image file
 #*********************************
 
-cat swtpc.hex >> retro68.hex
-cat romcopy.hex >> retro68.hex
+cat microbasic.hex >> retro68.hex
 
 dos2unix retro68.hex	#strip off ctrl-Ms
 
 # clean up
-rm swtpc.hex 
-rm swtpc.s19 
-rm $SWTPC_BASIC
-rm romcopy.hex
-rm romcopy.asm
-rm romcopy.lst
+rm microbasic.hex 
+rm microbasic.s19 
+rm $MICRO_BASIC
 rm TBUG_retro68.s19
 
 
