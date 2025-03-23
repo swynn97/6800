@@ -17,6 +17,10 @@ NOTE: Code is mapped to a 64K address space, so expects a 64K ROM such as a W27C
 - All other TBUG notes and VDU notes are the same as the 8K version, above
 - ROM has a copy of TSC MicroBasic which is copied to RAM and executed using the 'Z' command
 
+----
+
+NOTE: PIA port A is a parallel keyboard input, so you should pull PA1 high with a 4K7 to avoid spurious characters!
+
 Release history:
 
 - 3/15/25	Initial commit to GitHub. Includes SWTPC BASIC v2.2, LCD driver code for a 2x16 display (partial support for larger displays, however scroll is broken). 
