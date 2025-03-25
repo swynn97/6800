@@ -1,0 +1,23 @@
+Parsing the first line of diff by hand, we get this:
+< S113C160
+C16C
+8D26
+9C22
+2707
+09
+A600
+A700
+20F5
+09
+8B
+After the length of (hex) 13, we have the address, C160, which is right in the middle of an instruction.
+Comparing, it's the A700 which is being modified to A70E, which makes sense, seeing that the sequence
+LDAA 0,X
+STAA 0,X
+is not useful until it gets modified.
+That puts the first instance of modified code is at label OFFSET+1 (surprise?), and a search for the label OFFSET shows that it is being modified at label REPLA4.
+The typical reason for doing this is that the 6800 doesn't have memory indirection without doing a load into X, and loading into X destroys the pointer you are using unless you have it saved in memory. Also, the math for a variable offset from X takes a bit of code.
+The 6801, of course, has ABX for this, and the 6809 has, in addition to ABX, the B,X indexed address mode for this.
+The clean (ROMmable) solution is to keep the pointer in a variable rather than in X and rewrite the code to use that variable, adding code to add the offset to that variable as necessary.
+Or, some people would add a routine that adds a variable offset to X itself.
+That might get you started.

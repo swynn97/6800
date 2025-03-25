@@ -730,7 +730,7 @@ load_basic      ldx     #basic_copymsg		;display copy message
                 jsr     PDATA
                 ldx     #DEST_START             ;load destination start address
                 stx     TW
-                ldx     #BASIC_START        	;load source start addfress
+                ldx     #BASIC_START        	;load source start address
                 stx     BEGA
                 ldx     #BASIC_END          	;load end address
                 stx     ENDA
@@ -742,17 +742,18 @@ load_basic      ldx     #basic_copymsg		;display copy message
 ;
 ; memcopy routine. Destination start is in TW, source start/end are in BEGA/ENDA
 ;
-memcopy         ldx     BEGA
+memcopy         ldx     BEGA			;load source address
                 ldaa    0,x                     ;load byte to copy
-                inx
-                cpx     ENDA
-                beq     done
-                stx     BEGA
-                ldx     TW                      ;load current destination
-                staa    0,x                     ;copy byte
-                inx
-                stx     TW
-                bra     memcopy
+		ldx	TW			;load destination address
+		staa	0,x			;store byte
+		inx				;increment and store next destination address
+		stx	TW
+		ldx	BEGA			;reload current source address	
+	        cpx	ENDA			;check if end reached?
+		beq	done
+		inx				;else, increment source address and store it
+		stx	BEGA
+		bra	memcopy			;and keep going
 done            rts
 
 	endif

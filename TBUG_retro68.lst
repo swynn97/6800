@@ -1229,24 +1229,24 @@ e637 : 7e0100                           jmp     BASIC_EXEC_START        ;jump
                         ;
                         ; memcopy routine. Destination start is in TW, source 
                         ;
-e63a : fea002           memcopy         ldx     BEGA
+e63a : fea002           memcopy         ldx     BEGA			;load source address
 e63d : a600                             ldaa    0,x                     ;load 
-e63f : 08                               inx
-e640 : bca004                           cpx     ENDA
+e63f : fea00f           		ldx	TW			;load destination address
+e642 : a700             		staa	0,x			;store byte
 AS02 Assembler for M6802 [1.42].                                     Page   20
 --------------------------------- lcd_driver ---------------------------------
 
-e643 : 270e                             beq     done
-e645 : ffa002                           stx     BEGA
-e648 : fea00f                           ldx     TW                      ;load 
-e64b : a700                             staa    0,x                     ;copy 
-e64d : 08                               inx
-e64e : ffa00f                           stx     TW
-e651 : 20e7                             bra     memcopy
-e653 : 39               done            rts
+e644 : 08               		inx				;increment and store next destination address
+e645 : ffa00f           		stx	TW
+e648 : fea002           		ldx	BEGA			;reload current source address	
+e64b : bca004           	        cpx	ENDA			;check if end reached?
+e64e : 2706             		beq	done
+e650 : 08               		inx				;else, increment source address and store it
+e651 : ffa002           		stx	BEGA
+e654 : 20e4             		bra	memcopy			;and keep going
+e656 : 39               done            rts
                         
                         	endif
-                        ;
                         ;
                         ;###########################################
                         ;
