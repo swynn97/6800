@@ -14,6 +14,10 @@
 ;			  code.			  			
 ;	2.4	3/15/25 - Added code to fix RUBIG and WAIT issues.
 ;	2.5	3/21/25	- Added back 'U' command, added TSC MicroBasic loader (Z command) with optional switches	
+;	2.6	3/25/25	- Removed U command and replaced this with a caps lock toggle using 'U' and 'u'
+;			  lcd_driver blocks interrupts when talking to PIAB	
+;			  Added virual PIA port and cleaned up INCH code to remove space and crud
+;			  we no longer need. This is last version on a 16x2 display.	
 ;
 ; Note: Spare space labbeled with 'SPARE SPACE'
 ;
@@ -50,7 +54,7 @@ STACK_SIZE      equ     46	;as per orig TBUG source, not xTBUG
 ;
 ;LCD display size
 ;
-LCDWIDTH       equ     16                      ;16x2 display
+LCDWIDTH       equ     16
 LCDROWS        equ     2
 LCDBUFSZ       equ     LCDWIDTH*LCDROWS        ;size of backing ram for display
 ;
@@ -84,8 +88,10 @@ RTIVEC          ds      2	;As per orig TBUG, length of STACIN+RTIVEC = 7 bytes
 ;
 		org	$A080
 ;
+VPIAPR          ds    	1	;Virtual PIA input port - data 
+VPIACN          ds   	1 	;Virtual PIA input port - control
 NAME            ds      11	;Additionsl TBUG storage. 
-RUBIG           ds      1	
+CAPSLK          ds      1	;When high, force caps lock	
 WAIT            ds      1 	
 ;
 ; LCD ram storage
@@ -111,6 +117,7 @@ FF              equ     $0c
 SPACE		equ	$20
 NULL		equ	$0
 RUB		equ	$7f
+CARET		equ	$5e
 ;
 ;***************************************************
 ; I/O base address and SWTPC type slot numbers.
@@ -334,12 +341,15 @@ INCT  	inx            		;x+1 to point at the next
         inx
       	bra    	SCAN
 ;
-; Change serial format 'U' command
-;
-SERFORM	ldaa 	#$11    	;change acia serial format
-    	staa 	ACIACN		;to 2 stop (for 110 baud)
-      	bra    	CONTRL 		;then return
 NOCOMM 	jmp 	LOAD19
+;
+; Toggle caps lock function
+;
+TGLCAP	com	CAPSLK		;just toggle the caps lock flag
+  	bra    	CONTRL 		;then return
+;	
+        nop
+        nop
         nop
 ;
 ; Go 'G' command
@@ -430,38 +440,38 @@ INCH	ldaa 	#$7f    	;input one char from port into, changed to INCH from INPOLL
 ;
 INXBIT 	bsr  	SAVX    	;put '7f' ignore m.s. bit
         pshb         		;save b
-POLL1 	;ldab 	XIABCN,x  	;does pia(b) have something - No longer use PIAB
+;
+; The original PIA port B has been removed, OG code in comments.
+; Introduces concept of a virtual port that can be wrriten to by
+; and interrupt routine.
+;
+;POLL1 	;ldab 	XIABCN,x  	;does pia(b) have something - No longer use PIAB
       	;bpl   	POLL2
       	;anda 	XIABPR,x  	;get data from pia(b)
       	;bra   	RET
+POLL1	ldab	VPIACN		;see if anything has been written to virtual port
+	beq	POLL2	
+	anda	VPIAPR		;if it has, read the port value and clear the control 'reg'
+	clr	VPIACN		;since this is not a real PIA...
+	bra	CCAPSLK		
+;
 POLL2 	ldab 	XIAACN,x  	;does pia(a) have something
       	bpl   	POLL3
       	anda 	XIAAPR,x  	;get data from pia(a)
-      	bra   	RET		
+      	bra   	CCAPSLK		
 POLL3 	ldab 	YCIACN,x  	;does acia have something?
         lsrb
       	bcc   	POLL1
       	anda 	YCIADT,x  	;get data from acia
-RET 	tst   	RUBIG   	;ignore rubout chars?
-      	bne   	DIG
-      	cmpa 	#RUB		;7fh
-      	bra   	CRQ     	;mess of branches is so that
+	bra	CCAPSLK
 ;
-	nop			;SPARE SPACE
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+		org	$e1d1
 ;
 ; OUTCH routine
 ;
 	VERIFY	$e1d1
 ;
-OUTCH  	bra   	OUTP    	;output routine appears at
-CRQ   	beq   	POLL1  		;'e1d1'
+OUTCH  	bra   	OUTP    	;Mess of branches so output routine appears at e1d1
 DIG   	pulb
     	ldx   	XTEMP
 OUTP  	bsr   	SAVX
@@ -475,7 +485,20 @@ F9      bcc   	NOTRDY 		;no
 	pulb
 	ldx   	XTEMP   	;restore x
         rts
+;
 BADLK 	jmp 	BADDR
+;
+;
+; Force caps lock if flag set - TBUG and most apps only accept capital letters...
+;
+CCAPSLK	tst	CAPSLK		;test if caps lock enabled
+	beq	DIG
+	cmpa	#'a'		;if less that 'a' do nothing
+	blt	DIG			
+	cmpa	#'z'		;if greater than 'z' do nothing
+	bgt	DIG	
+	anda	#$df		;otherwise, force upper case
+	bra	DIG	
 ;
 ; SPARE SPACE
 ;
@@ -489,21 +512,19 @@ NULOUT  jsr     OUTCH           ;level to settle
         rts
 INIT 	ldaa 	#$15    	;init acia-one stop bit and
      	staa 	ACIACN  	;8 bits of data no parity
-     	;clr   	RUBIG   	;rubout chars ignored.
 ;
 	lda     #$01            ;set the WAIT bit to always return
-        staa    RUBIG           ;don't ignore rubout/7F (orig TBUG clears this)
         staa    WAIT            ;Initialize the WAIT variable (used in LOAD) - fixes bug in orig TBUG   
+        clr    	CAPSLK		;Clear caps lock flag
 ;
+	clr	VPIACN		;clear virtaul PIA port control 'reg'
 	jsr	piab_init	;Initialize the PIA for the LCD display
+;
 	jsr	lcd_init	;Initialize the LCD display
      	ldx   	#TBSTR  	;print 'tbug'
      	jsr   	PDATA
 ;
 	rts
-	nop			;SPARE SPACE
-	nop			;SPARE SPACE
-	nop			;SPARE SPACE
 	nop			;SPARE SPACE
 	nop			;SPARE SPACE
 	nop			;SPARE SPACE
@@ -676,8 +697,10 @@ TABLE 	db   	'G'     	;-jump table for command
       	dw   	COPY
         db   	'J'     	;-jump to address
       	dw   	JUMP
-        db   	'U'     	;-change serial format to 2 st
-      	dw   	SERFORM
+        db   	'U'     	;-toggle caps lock ('U' used to be SERFORM in OG TBUG)
+      	dw   	TGLCAP
+        db   	'u'     	;-toggle caps lock ('U' used to be SERFORM in OG TBUG)
+      	dw   	TGLCAP
 ;
 ;Since this will never be placed in a 1K ROM, just keep adding new commands here
 ;

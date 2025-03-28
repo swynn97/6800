@@ -25,5 +25,7 @@ Release history:
 
 - 3/15/25	Initial commit to GitHub. Includes SWTPC BASIC v2.2, LCD driver code for a 2x16 display (partial support for larger displays, however scroll is broken). 
 - 3/21/25	Split build script into two flavors, added TSC 4K MicroBasic. 
+- 3/28/25	Added a virtal PIA port for interrupt routines to use to send characters to TBUG, added 'U' command 
+		to enable capslock. Both 'U' and 'u' work. Lots of cleanup and refactoring of INCH.
 
 

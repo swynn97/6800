@@ -312,7 +312,8 @@ ldelay		dex
 ;Send lcd command when display is in 8 bit mode
 ;Note: this is only used during init
 ;
-lcd_cmd8	psha			;Save a reg
+lcd_cmd8	sei			;block interrupts since port maybe multiplexed
+		psha			;Save a reg
 		anda	#$f0		;remove lower nibble since display is wired as 4 bit
 		oraa	#$08		;Set RS = 0, E = 1
 		staa	PIABPR		;output PIA
@@ -320,13 +321,15 @@ lcd_cmd8	psha			;Save a reg
 		anda	#$F7		;set RS = 0, E = 0
 		staa	PIABPR		;leave date as-is but set E = 0
 		pula			;restore a reg
+		cli
 		rts	
 ;
 ;Send character in a reg to LCD. A contains full 8 bit character.
 ;Note: a reg is preserved, b is not, x is preserved
 ;Also store character in backing buffer
 ;
-lcd_char	psha                    ;Save a reg
+lcd_char	sei			;block interrupts since port maybe multiplexed
+		psha                    ;Save a reg
 		stx	lcd_charx	;preserve x
 		tab			;send high nible first
 		andb	#$f0
@@ -368,12 +371,14 @@ lcd_addcol	addb	lcd_col		;add the column offset
 		ldx	lcd_tempx	;store char in backing buffer based on calculated index	
 		staa	0,x
 		ldx	lcd_charx	;restore x
+		cli
 		rts
 ;
 ;Send command in a reg to LCD. A contains full 8 bit command.
 ;Note: a reg is preserved, b is not
 ;
-lcd_cmd		psha                    ;Save a reg
+lcd_cmd		sei			;block interrupts since port maybe multiplexed
+		psha                    ;Save a reg
 		tab                     ;send high nible first
 		andb    #$f0
 		orab    #$08            ;set RS = 0, E = 1
@@ -391,6 +396,7 @@ lcd_cmd		psha                    ;Save a reg
 		anda    #$F3            ;set E = 0
 		staa    PIABPR          ;send to PIA
 		pula
+		cli
 		rts
 ;
 ;Set cursor position. Row in a, col in b, zero == lowest row/col

@@ -1,0 +1,74 @@
+AS02 Assembler for M6802 [1.42].                                     Page    1
+-------------------------------- int_test.asm --------------------------------
+
+65 lines read, no errors in pass 1.
+                        		title "int_test"
+                        ;=====================================================
+                        ;IRQ Interrupt test code 
+                        ;
+                        ;
+                        ;=====================================================
+                        ;
+                        ;Equates
+                        ;
+e0e3 =                  CONTRL          equ 	$e0e3	;Return the TBUG    
+8012 =                  PIABPR          equ     $8012
+8013 =                  PIABCN		equ	$8013
+e07e =                  PDATA		equ	$e07e
+e1ac =                  INCH		equ	$e1ac
+                        ;
+                        ; Common ASCII control codes
+                        ;
+0004 =                  EOT             equ     $04
+0007 =                  BEL             equ     $07
+0008 =                  BS              equ     $08
+000a =                  LF              equ     $0a
+000c =                  FF		equ	$0c
+000d =                  CR              equ     $0d
+007f =                  DEL             equ     $7f
+0000 =                  NULL		equ	$0
+007f =                  RUB		equ	$7f
+                        ;
+0020 =                  SPACE		equ	$20	;space character
+                        ;
+a000 =                  IRV		equ	$a000	;Interupt vector point for IRQ
+                        ;
+                        ; RAM area
+                        ;
+                                        bss
+6000 =                                  org     $6000
+                        ;
+6000 =                  counter		ds	2	
+                        
+                        		code
+7000 =                  		org	$7000
+                        ;
+                        ;=====================================================
+                        ;
+7000 : ce7012           start		ldx	#int_routine	;set IRQ vector to point at in
+7003 : ffa000           		stx	IRV
+7006 : 7f6000           		clr	counter		;clear counter
+7009 : 8605             		ldaa	#$05		;turn on interrupts on CA1
+700b : b78013           		staa	PIABCN
+700e : 0e               		cli
+700f : 7ee0e3           		jmp	CONTRL		;exit		
+                        ;
+7012 :                  int_routine	;ldaa	PIABCN	
+7012 : b68012           		ldaa	PIABPR		;read PIA to reset interrupt
+7015 : b66000           		ldaa	counter		;put counter byte into PIAB
+7018 : 260a             		bne	cont
+701a : c641             		ldab	#$41
+701c : f7a080           		stab	$a080
+701f : c601             		ldab	#$01
+7021 : f7a081           		stab	$a081
+7024 : 84f0             cont		anda	#$F0		;only keep upple 4 bits
+7026 : 8a80             		oraa	#$80		;keep E high and RS=low for LCD display	
+AS02 Assembler for M6802 [1.42].                                     Page    2
+---------------------------------- int_test ----------------------------------
+
+7028 : b78012           		staa	PIABPR
+702b : 7c6000           		inc	counter
+702e : 3b               		rti	
+                        							
+                        
+No errors in pass 2.
